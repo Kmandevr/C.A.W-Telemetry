@@ -194,6 +194,18 @@ test('weekly summary on Mondays only', async () => {
   assert.match(t.content, /Cortex-X2/);
 });
 
+test('status: reports the token and repository access, under either secret name', async () => {
+  const e = { ...env(), GITHUB_TOKEN: undefined, Github_Token: 'x' };
+  globalThis.fetch = async (url, init) => {
+    assert.equal(init.headers.authorization, 'Bearer x');
+    return new Response(JSON.stringify({ full_name: 'Kmandevr/C.A.W-Telemetry', permissions: { push: true } }));
+  };
+  const res = await worker.fetch(req('GET', '/v1/status'), e);
+  assert.deepEqual(await res.json(), { github: 'ok', repo: 'Kmandevr/C.A.W-Telemetry', canWrite: true, reportsWaiting: 0, feedbackWaiting: 0 });
+  const none = await worker.fetch(req('GET', '/v1/status'), { ...env(), GITHUB_TOKEN: undefined });
+  assert.deepEqual(await none.json(), { github: 'no token set' });
+});
+
 test('isoWeek and summarise handle edges', () => {
   assert.equal(isoWeek(new Date('2026-01-01T00:00:00Z')), '2026-W01');
   assert.equal(isoWeek(new Date('2027-01-01T00:00:00Z')), '2026-W53');

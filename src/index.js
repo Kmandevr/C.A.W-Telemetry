@@ -2,7 +2,7 @@
 // - POST /v1/report, GET /v1/report/<receipt>, POST /v1/delete: anonymous telemetry, buffered in D1 and published
 //   to data/ once a day by the scheduled run.
 // - POST /v1/feedback: posts a public Issue in this repository; an optional contact email stays private in D1.
-// The contract with the app is PLAN.md, "The contract with the app". Secrets: GITHUB_TOKEN only (see PLAN.md).
+// The contract with the app is PLAN.md, "The contract with the app". Secrets: the GitHub token only (see PLAN.md).
 
 import { cleanReport, cleanFeedback, SchemaError, RECEIPT, HASH } from './schema.js';
 
@@ -82,12 +82,14 @@ const caps = (env) => ({
   lookupsPerSender: 200,
 });
 
-// GitHub API.
+// GitHub API. The token is the Worker secret GITHUB_TOKEN (the owner's is named Github_Token; both are read).
+const githubToken = (env) => env.GITHUB_TOKEN || env.Github_Token || '';
+
 async function gh(env, method, path, body, accept = 'application/vnd.github+json') {
   const res = await fetch(`https://api.github.com/repos/${env.REPO}${path}`, {
     method,
     headers: {
-      authorization: `Bearer ${env.GITHUB_TOKEN}`,
+      authorization: `Bearer ${githubToken(env)}`,
       accept,
       'user-agent': 'caw-telemetry-relay',
       'x-github-api-version': '2022-11-28',
@@ -365,6 +367,18 @@ async function prune(env) {
   ]);
 }
 
+// For the owner and maintainers: is the GitHub token set, and can it write to the repository? Never shows the token.
+async function status(env) {
+  if (!githubToken(env)) return json(200, { github: 'no token set' });
+  const res = await gh(env, 'GET', '');
+  if (res.status === 404) return json(200, { github: 'token cannot see the repository' });
+  const repo = await res.json();
+  const pending = await env.DB.prepare('SELECT COUNT(*) AS n FROM reports WHERE committed = 0 AND deleted = 0').first();
+  const queued = await env.DB.prepare('SELECT COUNT(*) AS n FROM feedback_queue').first();
+  return json(200, { github: 'ok', repo: repo.full_name, canWrite: !!repo.permissions?.push,
+    reportsWaiting: pending.n, feedbackWaiting: queued.n });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -377,6 +391,7 @@ export default {
         return await getReport(env, request, url.pathname.slice('/v1/report/'.length));
       if (url.pathname === '/v1/delete' && request.method === 'POST') return await postDelete(env, request);
       if (url.pathname === '/v1/feedback' && request.method === 'POST') return await postFeedback(env, request, ctx);
+      if (url.pathname === '/v1/status' && request.method === 'GET') return await status(env);
       return json(404, { error: 'not found' });
     } catch {
       return later('temporarily unavailable');  // never echo internals; the app keeps its item queued

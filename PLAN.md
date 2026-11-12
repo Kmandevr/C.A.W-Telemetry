@@ -34,6 +34,7 @@ Every request sends `X-CAW-App-Key: caw-beta-1`. It is **not a secret** (it ship
 | `POST /v1/delete` | `{"items":[{"receipt":"<32 hex>","deleteKey":"<64 hex>"}]}`, up to 100 | `202 {"deleted":<n>}`; the files leave `data/` at the next hourly run |
 | `POST /v1/feedback` | below, at most 32 KB | `201 {"issue":"<url>"}`; `202 {"status":"queued"}` when GitHub is slow (posted within the hour); `400`/`413`/`429`/`503` as above |
 | `GET /` | none | `200 {"service":"caw-telemetry relay","schema":1}` (health check, no key needed) |
+| `GET /v1/status` | none | `200 {"github":"ok","repo":...,"canWrite":true,"reportsWaiting":n,"feedbackWaiting":n}`, or `{"github":"no token set"}` / `"token cannot see the repository"`: for maintainers; never shows the token |
 
 Any other error, including the relay's own, is `503` with `Retry-After`; nothing internal is echoed.
 
@@ -118,7 +119,8 @@ Each becomes an Issue here titled `[<kind>] <first line>`, labelled `beta-feedba
    - Resource owner: Kmandevr. Repository access: **Only select repositories → C.A.W-Telemetry**.
    - Permissions: **Contents: Read and write**, **Issues: Read and write** (Metadata: Read is added automatically).
    - Expiry: the longest you're comfortable with; renew it before it ends (the relay's commits stop when it expires).
-4. Give it to the relay: Cloudflare dashboard → Workers & Pages → `caw-telemetry` → Settings → Variables and Secrets → Add → type **Secret**, name `GITHUB_TOKEN`, paste the token → Deploy.
+4. ~~Give it to the relay~~ (done 2026-11-12): Cloudflare dashboard → Workers & Pages → `caw-telemetry` → Settings → Variables and Secrets → Add → type **Secret**, name `Github_Token` (the relay also reads `GITHUB_TOKEN`), paste the token → Deploy. `GET /v1/status` confirmed it can write to this repository.
+   - **Renewing:** when the token nears expiry, make a new one the same way and replace the secret's value; nothing else changes.
 
 Nobody else ever sees the token: it lives only in Cloudflare's secret store.
 

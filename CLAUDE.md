@@ -7,7 +7,7 @@ The public home of everything [C.A.W](https://github.com/Kmandevr/C.A.W) collect
 - **The contract is shared.** The app in Kmandevr/C.A.W is built to PLAN.md's "The contract with the app". Change it only with the owner, and in both places (here and C.A.W's `docs/decisions.md`).
 - **Nothing about the user, ever.** The schema in `src/schema.js` is an allow-list; never widen it to anything that could identify a person (names, paths, accounts, MIDI, location, IDs that link reports). The relay never stores IP addresses or contact emails anywhere public.
 - **Zero cost.** Cloudflare Workers Free plan only: never add a payment method, a paid plan or a paid product. Stay well inside the limits in PLAN.md (check Cloudflare's docs and date them before relying on a limit).
-- **No secrets in this repo.** The only secret is `GITHUB_TOKEN`, a Worker secret the owner sets in the Cloudflare dashboard.
+- **No secrets in this repo.** The only secret is the GitHub token (Worker secret `Github_Token`; `GITHUB_TOKEN` also works) the owner sets in the Cloudflare dashboard.
 - **`data/` and `summaries/` are written by the relay only.** Don't hand-edit, regenerate or force-push them.
 - **Facts are checked.** Never invent facts about Cloudflare, GitHub or the law: check a primary source and date it, or label it an assumption. PRIVACY.md and TERMS.md are drafts until a lawyer has checked them.
 - **The owner works from an Android phone.** Give steps that work from a phone; don't assume a PC.
