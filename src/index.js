@@ -170,7 +170,7 @@ function fenced(text) {
 function feedbackIssue(f) {
   const first = f.text.trim().split('\n')[0].replace(/[@#<>`\[\]]/g, '').slice(0, 70).trim() || 'Feedback';
   const parts = [
-    `**${f.kind}** from C.A.W ${f.appVersion} on ${f.platform}`,
+    `**${f.kind}** from C.A.W ${f.appVersion}${f.build ? ` (build ${f.build})` : ''} on ${f.platform}`,
     '',
     fenced(f.text),
   ];
@@ -276,16 +276,32 @@ const tally = (map, key, n = 1) => map.set(key, (map.get(key) || 0) + n);
 const top = (map, n = 10) => [...map].sort((a, b) => b[1] - a[1]).slice(0, n);
 const median = (xs) => { if (!xs.length) return 0; const s = [...xs].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
 
-export function summarise(reports, week, usage) {
+// Versions in order, newest first: 1.0.0 > 1.0.0-beta.2 > 1.0.0-beta.1 > 0.9.0.
+export function compareVersions(a, b) {
+  const parse = (v) => { const [core, pre] = v.split('-'); return { core: core.split('.').map(Number), pre: pre ? pre.split('.') : null }; };
+  const x = parse(a), y = parse(b);
+  for (let i = 0; i < 3; i++) if (x.core[i] !== y.core[i]) return x.core[i] - y.core[i];
+  if (!x.pre || !y.pre) return (x.pre ? -1 : 0) - (y.pre ? -1 : 0);
+  for (let i = 0; i < Math.max(x.pre.length, y.pre.length); i++) {
+    const p = x.pre[i], q = y.pre[i];
+    if (p === undefined || q === undefined) return p === undefined ? -1 : 1;
+    const np = /^[0-9]+$/.test(p), nq = /^[0-9]+$/.test(q);
+    if (np && nq && Number(p) !== Number(q)) return Number(p) - Number(q);
+    if (np !== nq) return np ? -1 : 1;
+    if (p !== q) return p < q ? -1 : 1;
+  }
+  return 0;
+}
+
+const versionOf = (r) => r.app.build ? `${r.app.version} (${r.app.build})` : r.app.version;
+
+// One version's (or one build's) numbers.
+function section(reports) {
   const platforms = new Map(), cpus = new Map(), tiers = new Map(), costs = new Map(), errs = new Map(), hints = new Map();
-  const worst = [], startup = [], p99 = [];
-  let withDropouts = 0;
   for (const r of reports) {
     tally(platforms, `${r.device.platform} ${r.device.osVersion}`);
     tally(cpus, r.device.cpu);
     tally(hints, `${r.device.platform}: ${r.perf.schedHint}, callback on ${r.perf.callbackCoreType} core`);
-    worst.push(r.perf.worstCallbackPct); startup.push(r.perf.startupMs); p99.push(r.perf.frames.p99ms);
-    if (r.perf.dropouts > 0) withDropouts++;
     if (r.stress) {
       tally(tiers, `normal ${r.stress.tiers.normal}, heavy ${r.stress.tiers.heavy}, extreme ${r.stress.tiers.extreme}`);
       for (const c of r.stress.topCosts) tally(costs, c.component, c.pct);
@@ -293,47 +309,84 @@ export function summarise(reports, week, usage) {
     for (const e of r.errors) tally(errs, `${e.type} at ${e.where}`, e.count);
   }
   const rows = (m) => top(m).map(([k, v]) => `| ${k} | ${Math.round(v * 10) / 10} |`).join('\n') || '| (none) | |';
-  const pct = (n) => reports.length ? `${Math.round((100 * n) / reports.length)}%` : '0%';
-  return `# Beta summary, ${week}
+  const s = stats(reports);
+  return `### Performance
+- Median worst callback: ${s.worst}% of budget
+- Reports with any dropout: ${s.dropouts}
+- Median startup: ${s.startup} ms
+- Median p99 frame time: ${s.p99} ms
 
-${reports.length} reports. Every number here comes from the published files in \`data/\`.
-
-## Performance
-- Median worst callback: ${median(worst)}% of budget
-- Reports with any dropout: ${pct(withDropouts)}
-- Median startup: ${median(startup)} ms
-- Median p99 frame time: ${median(p99)} ms
-
-## Platforms
+### Platforms
 | Platform | Reports |
 |---|---:|
 ${rows(platforms)}
 
-## CPUs
+### CPUs
 | CPU | Reports |
 |---|---:|
 ${rows(cpus)}
 
-## Audio-thread scheduling
+### Audio-thread scheduling
 | Platform: hint, callback core | Reports |
 |---|---:|
 ${rows(hints)}
 
-## Stress tests
+### Stress tests
 | Tiers | Runs |
 |---|---:|
 ${rows(tiers)}
 
-### What takes the time (summed share of each run's top costs)
+#### What takes the time (summed share of each run's top costs)
 | Component | Total % |
 |---|---:|
 ${rows(costs)}
 
-## Errors
+### Errors
 | Error | Count |
 |---|---:|
 ${rows(errs)}
+`;
+}
 
+function stats(reports) {
+  const n = reports.length;
+  return {
+    worst: median(reports.map((r) => r.perf.worstCallbackPct)),
+    startup: median(reports.map((r) => r.perf.startupMs)),
+    p99: median(reports.map((r) => r.perf.frames.p99ms)),
+    dropouts: n ? `${Math.round((100 * reports.filter((r) => r.perf.dropouts > 0).length) / n)}%` : '0%',
+    errors: reports.reduce((t, r) => t + r.errors.reduce((u, e) => u + e.count, 0), 0),
+  };
+}
+
+// The week's summary. Versions are kept apart: the newest gets the full breakdown, every version gets a row, so old
+// builds' numbers never blur the current one's.
+export function summarise(reports, week, usage) {
+  const byVersion = new Map();
+  for (const r of reports) {
+    const k = versionOf(r);
+    if (!byVersion.has(k)) byVersion.set(k, []);
+    byVersion.get(k).push(r);
+  }
+  const versions = [...byVersion.keys()].sort((a, b) =>
+    compareVersions(b.split(' ')[0], a.split(' ')[0]) || (byVersion.get(b).length - byVersion.get(a).length));
+  const table = versions.map((v) => {
+    const s = stats(byVersion.get(v));
+    return `| ${v} | ${byVersion.get(v).length} | ${s.worst}% | ${s.dropouts} | ${s.startup} ms | ${s.p99} ms | ${s.errors} |`;
+  }).join('\n') || '| (none) | | | | | | |';
+  const newest = versions[0];
+  return `# Beta summary, ${week}
+
+${reports.length} reports. Every number here comes from the published files in \`data/\`. Versions are kept apart, so
+older builds don't blur the newest one.
+
+## By version (newest first)
+| Version (build) | Reports | Median worst callback | With dropouts | Median startup | Median p99 frame | Errors |
+|---|---:|---:|---:|---:|---:|---:|
+${table}
+
+## Newest version: ${newest ?? 'none'}
+${newest ? section(byVersion.get(newest)) : ''}
 ## Relay usage against its free-plan caps (last 7 days)
 ${usage}
 `;

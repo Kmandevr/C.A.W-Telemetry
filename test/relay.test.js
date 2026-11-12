@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'node:crypto';
-import worker, { summarise, isoWeek } from '../src/index.js';
+import worker, { summarise, isoWeek, compareVersions } from '../src/index.js';
 import { cleanReport, cleanFeedback } from '../src/schema.js';
 
 // D1's API over node:sqlite.
@@ -204,6 +204,21 @@ test('status: reports the token and repository access, under either secret name'
   assert.deepEqual(await res.json(), { github: 'ok', repo: 'Kmandevr/C.A.W-Telemetry', canWrite: true, reportsWaiting: 0, feedbackWaiting: 0 });
   const none = await worker.fetch(req('GET', '/v1/status'), { ...env(), GITHUB_TOKEN: undefined });
   assert.deepEqual(await none.json(), { github: 'no token set' });
+});
+
+test('versions: ordered newest first, kept apart in the summary, optional build id checked', () => {
+  const sorted = ['0.9.0', '1.0.0-beta.10', '1.0.0', '1.0.0-beta.2', '1.0.0-beta.1'].sort((a, b) => compareVersions(b, a));
+  assert.deepEqual(sorted, ['1.0.0', '1.0.0-beta.10', '1.0.0-beta.2', '1.0.0-beta.1', '0.9.0']);
+  const old = cleanReport(report({ receipt: receipt(2), app: { version: '1.0.0-beta.1', engineVersion: '1', capiVersion: 23 } }));
+  const cur = cleanReport(report({ receipt: receipt(3), app: { version: '1.0.0-beta.2', engineVersion: '1', capiVersion: 24, build: 'abc1234' } }));
+  cur.device.cpu = 'Newest CPU';
+  const md = summarise([old, cur], '2026-W46', '- none');
+  assert.match(md, /## Newest version: 1\.0\.0-beta\.2 \(abc1234\)/);
+  assert.ok(md.indexOf('| 1.0.0-beta.2 (abc1234) | 1 |') < md.indexOf('| 1.0.0-beta.1 | 1 |'), 'newest row first');
+  const newest = md.slice(md.indexOf('## Newest version'));
+  assert.match(newest, /Newest CPU/);
+  assert.ok(!newest.includes('Cortex-X2'), "the old version's devices stay out of the newest breakdown");
+  assert.throws(() => cleanReport(report({ app: { version: '1.0.0', engineVersion: '1', capiVersion: 1, build: 'main' } })));
 });
 
 test('isoWeek and summarise handle edges', () => {

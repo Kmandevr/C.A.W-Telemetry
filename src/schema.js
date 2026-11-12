@@ -160,6 +160,8 @@ export function cleanReport(v) {
     day: str(v.day, 'day', 10, /^20[0-9]{2}-[01][0-9]-[0-3][0-9]$/),
     app: {
       version: str(app.version, 'app.version', 32, /^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$/),
+      // Optional: the commit the build came from, so CI builds sharing one version number can be told apart.
+      build: app.build === undefined ? undefined : str(app.build, 'app.build', 12, /^[0-9a-f]{7,12}$/),
       engineVersion: str(app.engineVersion, 'app.engineVersion', 32, /^[0-9A-Za-z.+-]+$/),
       capiVersion: num(app.capiVersion, 'app.capiVersion', 0, 100000),
     },
@@ -207,6 +209,7 @@ export function cleanFeedback(v) {
     kind: oneOf(v.kind, 'kind', KINDS),
     text,
     appVersion: str(v.appVersion, 'appVersion', 32, /^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$/),
+    build: v.build === undefined ? undefined : str(v.build, 'build', 12, /^[0-9a-f]{7,12}$/),
     platform: oneOf(v.platform, 'platform', ['android', 'windows', 'linux']),
     attachments: {
       device: att.device === undefined ? undefined : device(att.device, 'attachments.device'),

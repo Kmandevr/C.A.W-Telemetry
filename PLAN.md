@@ -20,7 +20,7 @@ app ──HTTPS──▶ relay (Cloudflare Worker, free) ──▶ D1 buffer ─
 
 - **Relay:** `https://caw-telemetry.kmandevr.workers.dev` (Worker `caw-telemetry`, account "Kmandevr@gmail.com's Account"). Code in `src/`, tables in `schema/d1.sql`, config in `wrangler.toml`.
 - **D1 database:** `caw-telemetry` (`a724d0b8-8b85-44c8-96d1-a24a8a89c7e6`). Holds reports until they're published (full JSON kept 35 days, then only the receipt, its delete hash and status), the feedback queue, contact emails (180 days), and daily counters.
-- **Hourly cron (`17 * * * *`):** retries queued feedback, publishes new reports and deletions (up to 3 commits of 50 files each), and at 03:17 UTC prunes old rows; on Mondays at 03:17 it commits `summaries/<ISO week>.md` for the week just ended.
+- **Hourly cron (`17 * * * *`):** retries queued feedback, publishes new reports and deletions (up to 3 commits of 50 files each), and at 03:17 UTC prunes old rows; on Mondays at 03:17 it commits `summaries/<ISO week>.md` for the week just ended, split by app version (newest first).
 - **No IP addresses are stored.** Per-sender limits count a SHA-256 of the address with a salt made fresh each UTC day and deleted the next day.
 
 ## The contract with the app
@@ -51,7 +51,8 @@ The relay keeps only these fields (unknown ones are dropped, wrong types are a `
   "deleteHash": "<64 lowercase hex: SHA-256 of the 32 raw bytes of a random delete key the device keeps>",
   "channel": "beta" | "release",
   "day": "YYYY-MM-DD",
-  "app": { "version": "1.0.0-beta.1", "engineVersion": "<letters, digits, . + ->", "capiVersion": <int> },
+  "app": { "version": "1.0.0-beta.1", "engineVersion": "<letters, digits, . + ->", "capiVersion": <int>,
+           "build": "<optional: 7-12 lowercase hex, the commit the build came from>" },
   "device": {
     "platform": "android" | "windows" | "linux",
     "osVersion": "<major version, digits only>",
@@ -93,6 +94,7 @@ The relay keeps only these fields (unknown ones are dropped, wrong types are a `
 ```
 
 - Ids that don't match the shapes above are counted as `"other"`, so a user's own component or project names can never be published.
+- **Versions are always recorded** (owner, 2026-11-12): `app.version`, `engineVersion` and `capiVersion` are required, `schema` says which report format it is, and the optional `app.build` tells CI builds that share a version number apart. The weekly summary keeps versions apart: one row per version (and build), and the full breakdown for the newest only, so old builds' numbers never blur the current one. Anyone reading `data/` should filter by version the same way.
 - `errors[].where` must be C.A.W's own source, relative: `lib/…`, `src/…`, `engine/…`, `app/…`, `platform/…`, `include/…` or `package:caw/…`, then `:<line>`. Absolute paths (which could hold a username) are rejected.
 
 ### Feedback
@@ -104,6 +106,7 @@ The relay keeps only these fields (unknown ones are dropped, wrong types are a `
   "text": "<1..5000 characters>",
   "appVersion": "1.0.0-beta.1",
   "platform": "android" | "windows" | "linux",
+  "build": "<optional: 7-12 lowercase hex, as in reports>",
   "attachments": { "device": <as report.device>?, "stress": <as report.stress>?, "errors": <as report.errors>? },
   "contact": "<email>"?
 }
