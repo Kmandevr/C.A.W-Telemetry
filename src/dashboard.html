@@ -203,7 +203,8 @@ svg text { fill: var(--muted); font-size: 10px; }
     const card = (v, k) => { const c = el('div', 'card'); c.append(el('div', 'v', v), el('div', 'k', k)); cards.append(c); };
     const mw = median(rows.map((r) => r.worstPct)), ms = median(rows.map((r) => r.startupMs)), mp = median(rows.map((r) => r.p99ms));
     card(String(n), 'daily reports');
-    card(String(matching.length - n), 'Benchmark runs');
+    // Benchmark runs: every report with a result (a daily report carries one when the day's limit was reached).
+    card(String(matching.filter((r) => r.stress).length), 'Benchmark runs');
     card(String(count(rows, (r) => r.model || r.cpu).size), 'distinct devices');
     card(mw === null ? '–' : `${mw}%`, 'median worst callback');
     const dk = rows.filter((r) => known(r.dropouts));
