@@ -44,6 +44,7 @@ function fakeGitHub() {
 const KEY = 'a'.repeat(64);
 const hashOf = (hex) => createHash('sha256').update(Buffer.from(hex, 'hex')).digest('hex');
 const receipt = (n) => n.toString(16).padStart(32, '0');
+const today = () => new Date().toISOString().slice(0, 10);
 
 function report(over = {}) {
   return {
@@ -81,15 +82,43 @@ const req = (method, path, body, key = 'k1') => new Request(`https://relay.examp
 });
 
 test('schema: rounds, drops unknown fields, turns unknown ids into "other"', () => {
-  const r = cleanReport({ ...report(), extra: 'x', device: { ...report().device, model: 'SM-S906B' } });
+  const r = cleanReport({ ...report(), extra: 'x', device: { ...report().device, name: "Kim's phone", serial: 'R5CT1234' } });
   assert.equal(r.extra, undefined);
-  assert.equal(r.device.model, undefined);
+  assert.equal(r.device.name, undefined, 'a user-set device name is never kept');
+  assert.equal(r.device.serial, undefined);
   assert.deepEqual(r.device.maxClockMHz, [3000, 2500, 1800]);
   assert.equal(r.perf.worstCallbackPct, 85);
   assert.equal(r.perf.startupMs, 1250);
   assert.equal(r.usage.minutesOpen, 45);
   assert.equal(r.usage.builtins.other, 2);
   assert.equal(r.usage.builtins['My Secret Synth'], undefined);
+});
+
+test('schema: platform, architecture, device, screen and peripherals', () => {
+  const d = {
+    ...report().device, platform: 'linux', arch: 'arm64', osName: 'Ubuntu', osVersion: '24.04',
+    manufacturer: 'Raspberry Pi', model: 'Raspberry Pi 5 Model B', formFactor: 'desktop',
+    screen: { widthPx: 2556, heightPx: 1179, dpi: 458, displays: 1 },
+    audio: { ...report().device.audio, output: 'usb' },
+    peripherals: [
+      { kind: 'audio-interface', connection: 'usb', model: 'Scarlett 2i2 4th Gen', vendorId: '1235', productId: '8219', channels: 2, inUse: true, name: 'My studio' },
+      { kind: 'midi', connection: 'bluetooth', inUse: false },
+    ],
+  };
+  const r = cleanReport(report({ device: d }));
+  assert.equal(r.device.arch, 'arm64');
+  assert.equal(r.device.osVersion, '24.04');
+  assert.equal(r.device.model, 'Raspberry Pi 5 Model B');
+  assert.deepEqual(r.device.screen, { widthPx: 2560, heightPx: 1180, dpi: 460, displays: 1 });
+  assert.equal(r.device.peripherals.length, 2);
+  assert.equal(r.device.peripherals[0].name, undefined, 'peripheral names the user can set are dropped');
+  assert.equal(r.device.peripherals[0].model, 'Scarlett 2i2 4th Gen');
+  for (const p of ['ios', 'macos', 'windows', 'android']) assert.equal(cleanReport(report({ device: { ...d, platform: p } })).device.platform, p);
+  assert.throws(() => cleanReport(report({ device: { ...d, arch: 'arm64e' } })));
+  assert.throws(() => cleanReport(report({ device: { ...d, osVersion: '24.04 (Noble) build 5' } })));
+  assert.throws(() => cleanReport(report({ device: { ...d, peripherals: [{ kind: 'midi', connection: 'usb', vendorId: 'XYZ1' }] } })));
+  // The older, shorter device record still passes.
+  assert.equal(cleanReport(report()).device.arch, undefined);
 });
 
 test('schema: rejects wrong types and bad formats', () => {
@@ -219,6 +248,33 @@ test('versions: ordered newest first, kept apart in the summary, optional build 
   assert.match(newest, /Newest CPU/);
   assert.ok(!newest.includes('Cortex-X2'), "the old version's devices stay out of the newest breakdown");
   assert.throws(() => cleanReport(report({ app: { version: '1.0.0', engineVersion: '1', capiVersion: 1, build: 'main' } })));
+});
+
+test('dashboard: served, in sync with its HTML; facts: compact rows of published reports only', async () => {
+  const html = readFileSync(new URL('../src/dashboard.html', import.meta.url), 'utf8');
+  const { DASHBOARD } = await import('../src/dashboard.js');
+  assert.equal(DASHBOARD, html, 'src/dashboard.js is stale: run npm run build');
+  const e = env();
+  const page = await worker.fetch(new Request('https://relay.example/dashboard'), e);
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /C\.A\.W Beta Telemetry/);
+  globalThis.fetch = fakeGitHub().fetch;
+  const d = { ...report().device, arch: 'arm64', model: 'SM-S906B', manufacturer: 'samsung',
+    peripherals: [{ kind: 'midi', connection: 'usb', model: 'KeyStep 37' }] };
+  await worker.fetch(req('POST', '/v1/report', report({ day: today(), device: d })), e);
+  await worker.fetch(req('POST', '/v1/report', report({ receipt: receipt(9), day: today() })), e);
+  await worker.scheduled({ scheduledTime: Date.now() }, e);
+  await worker.fetch(req('POST', '/v1/report', report({ receipt: receipt(10), day: today() })), e);  // not yet published
+  assert.equal((await worker.fetch(new Request('https://relay.example/v1/facts?days=3'), e)).status, 400);
+  const res = await worker.fetch(new Request('https://relay.example/v1/facts?days=7'), e);
+  const j = await res.json();
+  assert.equal(j.rows.length, 2, 'only published reports');
+  const rows = j.rows.map((r) => Object.fromEntries(j.columns.map((c, i) => [c, r[i]])));
+  const s22 = rows.find((r) => r.model === 'SM-S906B');
+  assert.equal(s22.arch, 'arm64');
+  assert.deepEqual(s22.peripherals, [{ kind: 'midi', connection: 'usb', model: 'KeyStep 37' }]);
+  assert.equal(s22.cpuLoad.length, 10);
+  assert.ok(!JSON.stringify(j).includes('deleteHash'));
 });
 
 test('isoWeek and summarise handle edges', () => {

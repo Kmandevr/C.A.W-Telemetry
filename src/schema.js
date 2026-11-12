@@ -53,14 +53,47 @@ export const RECEIPT = HEX(32);
 export const HASH = HEX(64);
 const TIERS = ['comfortable', 'tight', 'over'];
 
+export const PLATFORMS = ['android', 'ios', 'windows', 'macos', 'linux'];
+const ARCHES = ['arm64', 'arm', 'x64', 'x86', 'riscv64', 'other'];
+const FORMS = ['phone', 'tablet', 'laptop', 'desktop', 'tv', 'other', 'unknown'];
+const PERIPHERAL_KINDS = ['audio-output', 'audio-input', 'audio-interface', 'midi', 'gamepad', 'keyboard', 'mouse', 'touch', 'pen',
+  'display', 'storage', 'other'];
+const LINKS = ['builtin', 'usb', 'bluetooth', 'wired', 'hdmi', 'displayport', 'network', 'other', 'unknown'];
+const HEX4 = /^[0-9a-f]{4}$/;
+const opt = (v, f) => (v === undefined || v === null ? undefined : f(v));
+
+// A peripheral: its kind, how it's connected, and the maker's model name and USB ids. Never a name the user can set
+// (a Bluetooth or device name), a serial number or a port path: PLAN.md, "Device and peripherals".
+function peripheral(v, path) {
+  v = obj(v, path);
+  return {
+    kind: oneOf(v.kind, `${path}.kind`, PERIPHERAL_KINDS),
+    connection: oneOf(v.connection, `${path}.connection`, LINKS),
+    model: opt(v.model, (x) => label(x, `${path}.model`, 60)),
+    vendorId: opt(v.vendorId, (x) => str(x, `${path}.vendorId`, 4, HEX4)),
+    productId: opt(v.productId, (x) => str(x, `${path}.productId`, 4, HEX4)),
+    channels: opt(v.channels, (x) => num(x, `${path}.channels`, 0, 256)),
+    inUse: opt(v.inUse, (x) => bool(x, `${path}.inUse`)),
+  };
+}
+
 function device(v, path) {
   v = obj(v, path);
   const a = obj(v.audio, `${path}.audio`);
   const c = obj(v.cores, `${path}.cores`);
   const clocks = Array.isArray(v.maxClockMHz) ? v.maxClockMHz.slice(0, 4) : fail(`${path}.maxClockMHz`, 'expected a list');
+  const sc = v.screen === undefined ? undefined : obj(v.screen, `${path}.screen`);
+  const per = v.peripherals === undefined ? undefined
+    : Array.isArray(v.peripherals) ? v.peripherals.slice(0, 16) : fail(`${path}.peripherals`, 'expected a list');
   return {
-    platform: oneOf(v.platform, `${path}.platform`, ['android', 'windows', 'linux']),
-    osVersion: str(v.osVersion, `${path}.osVersion`, 8, /^[0-9]{1,4}$/),
+    platform: oneOf(v.platform, `${path}.platform`, PLATFORMS),
+    arch: opt(v.arch, (x) => oneOf(x, `${path}.arch`, ARCHES)),
+    osName: opt(v.osName, (x) => label(x, `${path}.osName`, 40)),
+    // Major, or major.minor.build (Windows 10.0.22631): never a full build fingerprint.
+    osVersion: str(v.osVersion, `${path}.osVersion`, 16, /^[0-9]{1,5}(\.[0-9]{1,6}){0,2}$/),
+    manufacturer: opt(v.manufacturer, (x) => label(x, `${path}.manufacturer`, 40)),
+    model: opt(v.model, (x) => label(x, `${path}.model`, 60)),
+    formFactor: opt(v.formFactor, (x) => oneOf(x, `${path}.formFactor`, FORMS)),
     cpu: label(v.cpu, `${path}.cpu`),
     cores: {
       big: num(c.big, `${path}.cores.big`, 0, 256),
@@ -71,13 +104,21 @@ function device(v, path) {
     ramGB: num(v.ramGB, `${path}.ramGB`, 0, 1024),
     gpu: label(v.gpu, `${path}.gpu`),
     refreshHz: num(v.refreshHz, `${path}.refreshHz`, 0, 1000),
+    screen: sc && {
+      widthPx: num(sc.widthPx, `${path}.screen.widthPx`, 0, 20000, 10),
+      heightPx: num(sc.heightPx, `${path}.screen.heightPx`, 0, 20000, 10),
+      dpi: opt(sc.dpi, (x) => num(x, `${path}.screen.dpi`, 0, 2000, 10)),
+      displays: opt(sc.displays, (x) => num(x, `${path}.screen.displays`, 0, 16)),
+    },
     audio: {
       backend: str(a.backend, `${path}.audio.backend`, 16, /^[a-z0-9_]{1,16}$/),
       exclusive: bool(a.exclusive, `${path}.audio.exclusive`),
       lowLatency: bool(a.lowLatency, `${path}.audio.lowLatency`),
       bufferFrames: num(a.bufferFrames, `${path}.audio.bufferFrames`, 0, 65536),
       sampleRate: num(a.sampleRate, `${path}.audio.sampleRate`, 0, 768000),
+      output: opt(a.output, (x) => oneOf(x, `${path}.audio.output`, LINKS)),
     },
+    peripherals: per && per.map((p, i) => peripheral(p, `${path}.peripherals[${i}]`)),
     profile: oneOf(v.profile, `${path}.profile`, ['full', 'balanced', 'lightweight', 'minimal']),
     eco: bool(v.eco, `${path}.eco`),
   };
@@ -210,7 +251,7 @@ export function cleanFeedback(v) {
     text,
     appVersion: str(v.appVersion, 'appVersion', 32, /^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$/),
     build: v.build === undefined ? undefined : str(v.build, 'build', 12, /^[0-9a-f]{7,12}$/),
-    platform: oneOf(v.platform, 'platform', ['android', 'windows', 'linux']),
+    platform: oneOf(v.platform, 'platform', PLATFORMS),
     attachments: {
       device: att.device === undefined ? undefined : device(att.device, 'attachments.device'),
       stress: att.stress === undefined ? undefined : stress(att.stress, 'attachments.stress'),

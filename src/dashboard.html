@@ -1,0 +1,287 @@
+<!doctype html>
+<!-- The beta telemetry dashboard (served by the relay at /dashboard). Source of src/dashboard.js: run `npm run build`. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="C.A.W beta telemetry: devices, platforms, peripherals and how well C.A.W runs on them.">
+<title>C.A.W Beta Telemetry</title>
+<style>
+:root {
+  --bg: #f6f7f9; --card: #ffffff; --ink: #16181d; --muted: #5d6573; --line: #e3e6eb;
+  --accent: #3b6fd8; --accent-soft: #dce6fa; --good: #1f8a4c; --warn: #b7791f; --bad: #c0392b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101215; --card: #191c21; --ink: #e9ecf1; --muted: #9aa3b2; --line: #2a2f37;
+    --accent: #7aa2ff; --accent-soft: #24304a; --good: #4cc27f; --warn: #e0a84a; --bad: #ef6b5b;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101215; --card: #191c21; --ink: #e9ecf1; --muted: #9aa3b2; --line: #2a2f37;
+  --accent: #7aa2ff; --accent-soft: #24304a; --good: #4cc27f; --warn: #e0a84a; --bad: #ef6b5b;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { padding: 20px 16px 8px; max-width: 1200px; margin: 0 auto; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+.sub { color: var(--muted); margin: 0; font-size: 13px; }
+.sub a { color: var(--accent); }
+.filters { position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line); }
+.filters .row { max-width: 1200px; margin: 0 auto; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px; }
+.filters label { display: flex; flex-direction: column; font-size: 11px; color: var(--muted); gap: 2px; flex: 1 1 130px; min-width: 0; }
+select { font: inherit; font-size: 14px; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; width: 100%; }
+main { max-width: 1200px; margin: 0 auto; padding: 12px 16px 40px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.card .v { font-size: 22px; font-weight: 650; }
+.card .k { font-size: 12px; color: var(--muted); }
+h2 { font-size: 16px; margin: 22px 0 8px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+.panel h3 { font-size: 13px; margin: 0 0 8px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+.bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; margin: 6px 0; font-size: 13px; }
+.bar .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar .num { color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar .track { grid-column: 1 / -1; height: 6px; background: var(--accent-soft); border-radius: 3px; overflow: hidden; }
+.bar .fill { height: 100%; background: var(--accent); border-radius: 3px; }
+.empty { color: var(--muted); font-size: 13px; }
+svg { display: block; width: 100%; height: auto; }
+svg text { fill: var(--muted); font-size: 10px; }
+.note { color: var(--muted); font-size: 12px; margin-top: 6px; }
+#status { color: var(--muted); padding: 30px 0; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>C.A.W Beta Telemetry</h1>
+  <p class="sub">Anonymous device and performance data from C.A.W beta builds. Nothing here identifies anyone. Every report is public in
+    <a href="https://github.com/Kmandevr/C.A.W-Telemetry">Kmandevr/C.A.W-Telemetry</a>. Updated hourly.</p>
+</header>
+<div class="filters"><div class="row">
+  <label>Period<select id="f-days"><option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option><option value="365">1 year</option></select></label>
+  <label>Version<select id="f-version"></select></label>
+  <label>Platform<select id="f-platform"></select></label>
+  <label>Architecture<select id="f-arch"></select></label>
+  <label>Form factor<select id="f-form"></select></label>
+  <label>Channel<select id="f-channel"></select></label>
+</div></div>
+<main>
+  <div id="status">Loading…</div>
+  <div id="content" hidden>
+    <div class="cards" id="cards"></div>
+
+    <h2>Activity</h2>
+    <div class="grid">
+      <div class="panel"><h3>Reports per day</h3><div id="c-days"></div></div>
+      <div class="panel"><h3>Versions</h3><div id="c-versions"></div></div>
+    </div>
+
+    <h2>Platforms and devices</h2>
+    <div class="grid">
+      <div class="panel"><h3>Platform and architecture</h3><div id="c-platform"></div></div>
+      <div class="panel"><h3>Operating system</h3><div id="c-os"></div></div>
+      <div class="panel"><h3>Manufacturer</h3><div id="c-maker"></div></div>
+      <div class="panel"><h3>Device model</h3><div id="c-model"></div></div>
+      <div class="panel"><h3>Form factor</h3><div id="c-form"></div></div>
+      <div class="panel"><h3>CPU</h3><div id="c-cpu"></div></div>
+      <div class="panel"><h3>GPU</h3><div id="c-gpu"></div></div>
+      <div class="panel"><h3>Memory</h3><div id="c-ram"></div></div>
+      <div class="panel"><h3>Screen refresh rate</h3><div id="c-refresh"></div></div>
+    </div>
+
+    <h2>Audio and peripherals</h2>
+    <div class="grid">
+      <div class="panel"><h3>Audio backend</h3><div id="c-backend"></div></div>
+      <div class="panel"><h3>Audio output</h3><div id="c-output"></div></div>
+      <div class="panel"><h3>Buffer size (frames)</h3><div id="c-buffer"></div></div>
+      <div class="panel"><h3>Sample rate</h3><div id="c-rate"></div></div>
+      <div class="panel"><h3>Peripheral types</h3><div id="c-pkind"></div></div>
+      <div class="panel"><h3>Peripheral connections</h3><div id="c-plink"></div></div>
+      <div class="panel"><h3>Peripheral models</h3><div id="c-pmodel"></div></div>
+    </div>
+
+    <h2>Performance</h2>
+    <div class="grid">
+      <div class="panel"><h3>Worst audio callback (% of budget)</h3><div id="c-worst"></div><p class="note">Over 100% means the audio missed its deadline at least once.</p></div>
+      <div class="panel"><h3>Time spent at each CPU load</h3><div id="c-load"></div><p class="note">Average share of playing time in each 10% load band.</p></div>
+      <div class="panel"><h3>Median worst callback by device</h3><div id="c-worst-model"></div></div>
+      <div class="panel"><h3>Reports with dropouts, by platform</h3><div id="c-drop"></div></div>
+      <div class="panel"><h3>Median startup by platform (ms)</h3><div id="c-startup"></div></div>
+      <div class="panel"><h3>Median p99 frame time by refresh rate (ms)</h3><div id="c-frames"></div></div>
+      <div class="panel"><h3>Audio-thread scheduling</h3><div id="c-sched"></div></div>
+      <div class="panel"><h3>Performance profile</h3><div id="c-profile"></div></div>
+    </div>
+
+    <h2>Stress tests</h2>
+    <div class="grid">
+      <div class="panel"><h3>Tier results</h3><div id="c-tiers"></div></div>
+      <div class="panel"><h3>Median track limit by device</h3><div id="c-limit"></div></div>
+      <div class="panel"><h3>What takes the time</h3><div id="c-costs"></div><p class="note">Summed share of each run's top costs.</p></div>
+    </div>
+
+    <h2>Errors</h2>
+    <div class="grid">
+      <div class="panel"><h3>Most frequent errors</h3><div id="c-errors"></div></div>
+      <div class="panel"><h3>Errors per report, by version</h3><div id="c-err-version"></div></div>
+    </div>
+  </div>
+</main>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const ALL = '__all__';
+  let data = null;
+
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+  const median = (xs) => { const s = xs.filter((x) => typeof x === 'number').sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
+  const count = (rows, key) => { const m = new Map(); for (const r of rows) { const k = key(r); if (k === null || k === undefined || k === '') continue; m.set(k, (m.get(k) || 0) + 1); } return m; };
+  const sorted = (m) => [...m].sort((a, b) => b[1] - a[1]);
+  const cmpVersion = (a, b) => {
+    const p = (v) => { const [c, pre] = String(v).split('-'); return [c.split('.').map(Number), pre]; };
+    const [ca, pa] = p(a), [cb, pb] = p(b);
+    for (let i = 0; i < 3; i++) if ((ca[i] || 0) !== (cb[i] || 0)) return (ca[i] || 0) - (cb[i] || 0);
+    if (!pa || !pb) return pa ? -1 : pb ? 1 : 0;
+    return pa.localeCompare(pb, undefined, { numeric: true });
+  };
+
+  // Horizontal bars: [[label, value], ...]; `fmt` formats the value; `pctOf` adds a share.
+  function bars(id, entries, { limit = 12, fmt = (v) => v, pctOf = null } = {}) {
+    const box = $(id); box.replaceChildren();
+    if (!entries.length) { box.append(el('div', 'empty', 'No data yet')); return; }
+    const max = Math.max(...entries.map((e) => e[1])) || 1;
+    for (const [name, v] of entries.slice(0, limit)) {
+      const row = el('div', 'bar');
+      row.append(el('span', 'name', String(name)));
+      row.append(el('span', 'num', fmt(v) + (pctOf ? ` · ${Math.round((100 * v) / pctOf)}%` : '')));
+      const t = el('div', 'track'), f = el('div', 'fill'); f.style.width = `${Math.max(2, (100 * v) / max)}%`; t.append(f); row.append(t);
+      box.append(row);
+    }
+    if (entries.length > limit) box.append(el('div', 'note', `+ ${entries.length - limit} more`));
+  }
+
+  // Vertical columns over a sequence, drawn as SVG.
+  function columns(id, entries) {
+    const box = $(id); box.replaceChildren();
+    if (!entries.length) { box.append(el('div', 'empty', 'No data yet')); return; }
+    const W = 320, H = 120, pad = 14, n = entries.length, max = Math.max(...entries.map((e) => e[1])) || 1, w = (W - 4) / n;
+    const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${W} ${H + pad}`);
+    entries.forEach(([label, v], i) => {
+      const h = (H - 14) * (v / max), r = document.createElementNS(ns, 'rect');
+      r.setAttribute('x', 2 + i * w + w * 0.1); r.setAttribute('width', Math.max(1, w * 0.8));
+      r.setAttribute('y', H - h); r.setAttribute('height', Math.max(0.5, h)); r.setAttribute('rx', 2);
+      r.setAttribute('fill', 'var(--accent)');
+      const tip = document.createElementNS(ns, 'title'); tip.textContent = `${label}: ${v}`; r.append(tip); svg.append(r);
+    });
+    for (const [i, t] of [[0, entries[0][0]], [n - 1, entries[n - 1][0]]]) {
+      const tx = document.createElementNS(ns, 'text'); tx.textContent = t;
+      tx.setAttribute('x', i === 0 ? 2 : W - 2); tx.setAttribute('y', H + 11); tx.setAttribute('text-anchor', i === 0 ? 'start' : 'end'); svg.append(tx);
+    }
+    box.append(svg);
+  }
+
+  function options(id, values, label) {
+    const s = $(id), keep = s.value;
+    s.replaceChildren(new Option(`All ${label}`, ALL), ...values.map((v) => new Option(v, v)));
+    s.value = values.includes(keep) ? keep : ALL;
+  }
+
+  const plat = (r) => r.platform + (r.arch ? ` · ${r.arch}` : '');
+
+  function render() {
+    const f = { version: $('f-version').value, platform: $('f-platform').value, arch: $('f-arch').value, form: $('f-form').value, channel: $('f-channel').value };
+    const rows = data.filter((r) => (f.version === ALL || r.version === f.version) && (f.platform === ALL || r.platform === f.platform)
+      && (f.arch === ALL || r.arch === f.arch) && (f.form === ALL || r.formFactor === f.form) && (f.channel === ALL || r.channel === f.channel));
+    const n = rows.length;
+
+    const cards = $('cards'); cards.replaceChildren();
+    const card = (v, k) => { const c = el('div', 'card'); c.append(el('div', 'v', v), el('div', 'k', k)); cards.append(c); };
+    const mw = median(rows.map((r) => r.worstPct)), ms = median(rows.map((r) => r.startupMs)), mp = median(rows.map((r) => r.p99ms));
+    card(String(n), 'reports');
+    card(String(count(rows, (r) => r.model || r.cpu).size), 'distinct devices');
+    card(mw === null ? '–' : `${mw}%`, 'median worst callback');
+    card(n ? `${Math.round((100 * rows.filter((r) => r.dropouts > 0).length) / n)}%` : '–', 'reports with dropouts');
+    card(ms === null ? '–' : `${ms} ms`, 'median startup');
+    card(mp === null ? '–' : `${mp} ms`, 'median p99 frame');
+
+    const perDay = count(rows, (r) => r.day);
+    columns('c-days', [...perDay].sort((a, b) => a[0].localeCompare(b[0])));
+    bars('c-versions', [...count(rows, (r) => r.version + (r.build ? ` (${r.build})` : ''))].sort((a, b) => cmpVersion(b[0].split(' ')[0], a[0].split(' ')[0])), { pctOf: n });
+
+    bars('c-platform', sorted(count(rows, plat)), { pctOf: n });
+    bars('c-os', sorted(count(rows, (r) => `${r.osName || r.platform} ${r.osVersion}`)), { pctOf: n });
+    bars('c-maker', sorted(count(rows, (r) => r.manufacturer)), { pctOf: n });
+    bars('c-model', sorted(count(rows, (r) => (r.manufacturer && r.model ? `${r.manufacturer} ${r.model}` : r.model))), { pctOf: n, limit: 15 });
+    bars('c-form', sorted(count(rows, (r) => r.formFactor)), { pctOf: n });
+    bars('c-cpu', sorted(count(rows, (r) => r.cpu)), { pctOf: n });
+    bars('c-gpu', sorted(count(rows, (r) => r.gpu)), { pctOf: n });
+    bars('c-ram', [...count(rows, (r) => r.ramGB)].sort((a, b) => a[0] - b[0]).map(([k, v]) => [`${k} GB`, v]), { pctOf: n });
+    bars('c-refresh', [...count(rows, (r) => r.refreshHz)].sort((a, b) => a[0] - b[0]).map(([k, v]) => [`${k} Hz`, v]), { pctOf: n });
+
+    bars('c-backend', sorted(count(rows, (r) => r.audioBackend)), { pctOf: n });
+    bars('c-output', sorted(count(rows, (r) => r.audioOutput)), { pctOf: n });
+    bars('c-buffer', [...count(rows, (r) => r.bufferFrames)].sort((a, b) => a[0] - b[0]), { pctOf: n });
+    bars('c-rate', [...count(rows, (r) => r.sampleRate)].sort((a, b) => a[0] - b[0]).map(([k, v]) => [`${k / 1000} kHz`, v]), { pctOf: n });
+    const per = rows.flatMap((r) => r.peripherals || []);
+    bars('c-pkind', sorted(count(per, (p) => p.kind)));
+    bars('c-plink', sorted(count(per, (p) => p.connection)));
+    bars('c-pmodel', sorted(count(per, (p) => p.model)), { limit: 15 });
+
+    const bands = [['0–25%', 0, 25], ['25–50%', 25, 50], ['50–75%', 50, 75], ['75–100%', 75, 100], ['over 100%', 100, Infinity]];
+    bars('c-worst', bands.map(([k, lo, hi]) => [k, rows.filter((r) => r.worstPct >= lo && r.worstPct < hi).length]).filter((e) => n), { pctOf: n });
+    const load = new Array(10).fill(0); let withLoad = 0;
+    for (const r of rows) if (Array.isArray(r.cpuLoad)) { withLoad++; r.cpuLoad.forEach((x, i) => { load[i] += x; }); }
+    bars('c-load', withLoad ? load.map((x, i) => [`${i * 10}–${i * 10 + 10}%`, Math.round((100 * x) / withLoad)]) : [], { limit: 10, fmt: (v) => `${v}%` });
+    const medBy = (key, val) => {
+      const g = new Map(); for (const r of rows) { const k = key(r); if (!k) continue; if (!g.has(k)) g.set(k, []); g.get(k).push(val(r)); }
+      return [...g].map(([k, xs]) => [`${k} (${xs.length})`, median(xs)]).filter((e) => e[1] !== null).sort((a, b) => b[1] - a[1]);
+    };
+    bars('c-worst-model', medBy((r) => r.model || r.cpu, (r) => r.worstPct), { fmt: (v) => `${v}%`, limit: 15 });
+    const drop = new Map(); for (const r of rows) { const k = plat(r); const d = drop.get(k) || [0, 0]; d[0]++; if (r.dropouts > 0) d[1]++; drop.set(k, d); }
+    bars('c-drop', [...drop].map(([k, [t, d]]) => [`${k} (${t})`, Math.round((100 * d) / t)]).sort((a, b) => b[1] - a[1]), { fmt: (v) => `${v}%` });
+    bars('c-startup', medBy(plat, (r) => r.startupMs), { fmt: (v) => `${v}` });
+    bars('c-frames', medBy((r) => (r.refreshHz ? `${r.refreshHz} Hz` : null), (r) => r.p99ms), { fmt: (v) => `${v}` });
+    bars('c-sched', sorted(count(rows, (r) => `${r.platform}: hint ${r.schedHint}, ${r.coreType} core`)), { pctOf: n });
+    bars('c-profile', sorted(count(rows, (r) => r.profile)), { pctOf: n });
+
+    const runs = rows.filter((r) => r.stress);
+    bars('c-tiers', sorted(count(runs, (r) => `normal ${r.stress.tiers.normal} · heavy ${r.stress.tiers.heavy} · extreme ${r.stress.tiers.extreme}`)), { pctOf: runs.length });
+    const lim = new Map(); for (const r of runs) { const k = r.model || r.cpu; if (!lim.has(k)) lim.set(k, []); lim.get(k).push(r.stress.limits.tracks); }
+    bars('c-limit', [...lim].map(([k, xs]) => [`${k} (${xs.length})`, median(xs)]).sort((a, b) => b[1] - a[1]), { fmt: (v) => `${v} tracks`, limit: 15 });
+    const costs = new Map(); for (const r of runs) for (const c of r.stress.topCosts) costs.set(c.component, (costs.get(c.component) || 0) + c.pct);
+    bars('c-costs', sorted(costs), { fmt: (v) => `${Math.round(v)}` });
+
+    const errs = new Map(); for (const r of rows) for (const e of r.errors || []) { const k = `${e.type} at ${e.where}`; errs.set(k, (errs.get(k) || 0) + e.count); }
+    bars('c-errors', sorted(errs), { limit: 15 });
+    const ev = new Map(); for (const r of rows) { const d = ev.get(r.version) || [0, 0]; d[0]++; d[1] += (r.errors || []).reduce((t, e) => t + e.count, 0); ev.set(r.version, d); }
+    bars('c-err-version', [...ev].sort((a, b) => cmpVersion(b[0], a[0])).map(([k, [t, e]]) => [`${k} (${t})`, Math.round((100 * e) / t) / 100]), { fmt: (v) => `${v}` });
+  }
+
+  async function load() {
+    $('status').hidden = false; $('status').textContent = 'Loading…'; $('content').hidden = true;
+    try {
+      const res = await fetch(`/v1/facts?days=${$('f-days').value}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const j = await res.json();
+      data = j.rows.map((row) => Object.fromEntries(j.columns.map((c, i) => [c, row[i]])));
+      options('f-version', [...new Set(data.map((r) => r.version))].sort((a, b) => cmpVersion(b, a)), 'versions');
+      options('f-platform', [...new Set(data.map((r) => r.platform))].sort(), 'platforms');
+      options('f-arch', [...new Set(data.map((r) => r.arch).filter(Boolean))].sort(), 'architectures');
+      options('f-form', [...new Set(data.map((r) => r.formFactor).filter(Boolean))].sort(), 'form factors');
+      options('f-channel', [...new Set(data.map((r) => r.channel))].sort(), 'channels');
+      $('status').hidden = true; $('content').hidden = false;
+      render();
+      if (!data.length) { $('status').hidden = false; $('status').textContent = `No published reports in this period yet (since ${j.from}).`; }
+    } catch (e) {
+      $('status').textContent = `Couldn't load the data (${e.message}). Try again in a minute.`;
+    }
+  }
+
+  $('f-days').addEventListener('change', load);
+  for (const id of ['f-version', 'f-platform', 'f-arch', 'f-form', 'f-channel']) $(id).addEventListener('change', () => data && render());
+  load();
+})();
+</script>
+</body>
+</html>

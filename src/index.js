@@ -5,11 +5,12 @@
 // The contract with the app is PLAN.md, "The contract with the app". Secrets: the GitHub token only (see PLAN.md).
 
 import { cleanReport, cleanFeedback, SchemaError, RECEIPT, HASH } from './schema.js';
+import { DASHBOARD } from './dashboard.js';
 
 const REPORT_MAX = 8 * 1024;
 const FEEDBACK_MAX = 32 * 1024;
 const DELETE_MAX = 16 * 1024;
-const KEEP_JSON_DAYS = 35;     // full reports stay in D1 this long, for the weekly summary and lookups
+const KEEP_JSON_DAYS = 400;    // full reports stay in D1 this long, for the dashboard, the weekly summary and lookups
 const KEEP_CONTACT_DAYS = 180;
 // Free plan (Cloudflare docs, read 2026-11-12): 10 ms CPU and 50 subrequests per invocation, cron runs included.
 // A run makes at most 3 commits x 5 GitHub calls + 5 for the summary + 10 feedback retries = 30 subrequests, and
@@ -298,9 +299,12 @@ const versionOf = (r) => r.app.build ? `${r.app.version} (${r.app.build})` : r.a
 // One version's (or one build's) numbers.
 function section(reports) {
   const platforms = new Map(), cpus = new Map(), tiers = new Map(), costs = new Map(), errs = new Map(), hints = new Map();
+  const models = new Map(), peripherals = new Map();
   for (const r of reports) {
-    tally(platforms, `${r.device.platform} ${r.device.osVersion}`);
+    tally(platforms, `${r.device.platform}${r.device.arch ? ` ${r.device.arch}` : ''}, ${r.device.osName || r.device.platform} ${r.device.osVersion}`);
     tally(cpus, r.device.cpu);
+    if (r.device.model) tally(models, r.device.manufacturer ? `${r.device.manufacturer} ${r.device.model}` : r.device.model);
+    for (const p of r.device.peripherals || []) tally(peripherals, `${p.kind}, ${p.connection}${p.model ? `: ${p.model}` : ''}`);
     tally(hints, `${r.device.platform}: ${r.perf.schedHint}, callback on ${r.perf.callbackCoreType} core`);
     if (r.stress) {
       tally(tiers, `normal ${r.stress.tiers.normal}, heavy ${r.stress.tiers.heavy}, extreme ${r.stress.tiers.extreme}`);
@@ -317,14 +321,24 @@ function section(reports) {
 - Median p99 frame time: ${s.p99} ms
 
 ### Platforms
-| Platform | Reports |
+| Platform, architecture, OS | Reports |
 |---|---:|
 ${rows(platforms)}
+
+### Devices
+| Device | Reports |
+|---|---:|
+${rows(models)}
 
 ### CPUs
 | CPU | Reports |
 |---|---:|
 ${rows(cpus)}
+
+### Peripherals
+| Kind, connection: model | Count |
+|---|---:|
+${rows(peripherals)}
 
 ### Audio-thread scheduling
 | Platform: hint, callback core | Reports |
@@ -377,7 +391,7 @@ export function summarise(reports, week, usage) {
   const newest = versions[0];
   return `# Beta summary, ${week}
 
-${reports.length} reports. Every number here comes from the published files in \`data/\`. Versions are kept apart, so
+${reports.length} reports. Every number here comes from the published files in \`data/\`; charts are on the [dashboard](https://caw-telemetry.kmandevr.workers.dev/dashboard). Versions are kept apart, so
 older builds don't blur the newest one.
 
 ## By version (newest first)
@@ -432,11 +446,62 @@ async function status(env) {
     reportsWaiting: pending.n, feedbackWaiting: queued.n });
 }
 
+// The dashboard's data: one compact row per published report, built inside D1 (so the Worker only passes text
+// through) and cached for an hour at the edge, so a busy dashboard costs one query an hour per range.
+export const FACT_COLUMNS = [
+  ['day', 'day'], ['version', "json_extract(json,'$.app.version')"], ['build', "json_extract(json,'$.app.build')"],
+  ['channel', "json_extract(json,'$.channel')"],
+  ['platform', "json_extract(json,'$.device.platform')"], ['arch', "json_extract(json,'$.device.arch')"],
+  ['osName', "json_extract(json,'$.device.osName')"], ['osVersion', "json_extract(json,'$.device.osVersion')"],
+  ['manufacturer', "json_extract(json,'$.device.manufacturer')"], ['model', "json_extract(json,'$.device.model')"],
+  ['formFactor', "json_extract(json,'$.device.formFactor')"], ['cpu', "json_extract(json,'$.device.cpu')"],
+  ['ramGB', "json_extract(json,'$.device.ramGB')"], ['gpu', "json_extract(json,'$.device.gpu')"],
+  ['refreshHz', "json_extract(json,'$.device.refreshHz')"],
+  ['audioBackend', "json_extract(json,'$.device.audio.backend')"],
+  ['bufferFrames', "json_extract(json,'$.device.audio.bufferFrames')"],
+  ['sampleRate', "json_extract(json,'$.device.audio.sampleRate')"],
+  ['audioOutput', "json_extract(json,'$.device.audio.output')"], ['profile', "json_extract(json,'$.device.profile')"],
+  ['worstPct', "json_extract(json,'$.perf.worstCallbackPct')"], ['dropouts', "json_extract(json,'$.perf.dropouts')"],
+  ['startupMs', "json_extract(json,'$.perf.startupMs')"], ['p99ms', "json_extract(json,'$.perf.frames.p99ms')"],
+  ['schedHint', "json_extract(json,'$.perf.schedHint')"], ['coreType', "json_extract(json,'$.perf.callbackCoreType')"],
+  ['cpuLoad', "json(json_extract(json,'$.perf.cpuLoadHistogram'))"],
+  ['tracks', "json_extract(json,'$.usage.projectSize.tracks')"],
+  ['peripherals', "json(coalesce(json_extract(json,'$.device.peripherals'),'[]'))"],
+  ['stress', "json(coalesce(json_extract(json,'$.stress'),'null'))"],
+  ['errors', "json(coalesce(json_extract(json,'$.errors'),'[]'))"],
+];
+const FACT_DAYS = [7, 30, 90, 365];
+
+async function facts(env, request, ctx) {
+  const url = new URL(request.url);
+  const days = Number(url.searchParams.get('days') || 30);
+  if (!FACT_DAYS.includes(days)) return json(400, { error: `days: one of ${FACT_DAYS.join(', ')}` });
+  const cache = typeof caches !== 'undefined' ? caches.default : null;
+  const key = new Request(`${url.origin}/v1/facts?days=${days}`);
+  const hit = cache && (await cache.match(key));
+  if (hit) return hit;
+  const from = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+  const sql = `SELECT json_group_array(json_array(${FACT_COLUMNS.map((c) => c[1]).join(', ')})) AS rows
+    FROM reports WHERE committed = 1 AND deleted = 0 AND json IS NOT NULL AND day >= ?`;
+  const row = await env.DB.prepare(sql).bind(from).first();
+  const body = `{"days":${days},"from":"${from}","columns":${JSON.stringify(FACT_COLUMNS.map((c) => c[0]))},"rows":${row.rows}}`;
+  const res = new Response(body, { status: 200, headers: {
+    'content-type': 'application/json', 'cache-control': 'public, max-age=3600', 'access-control-allow-origin': '*' } });
+  if (cache) ctx?.waitUntil?.(cache.put(key, res.clone()));
+  return res;
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const keys = String(env.APP_KEYS || '').split(',').map((s) => s.trim()).filter(Boolean);
     if (url.pathname === '/' && request.method === 'GET') return json(200, { service: 'caw-telemetry relay', schema: 1 });
+    // Public: everything shown is already public in the repository.
+    if (url.pathname === '/dashboard' && request.method === 'GET')
+      return new Response(DASHBOARD, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'public, max-age=300' } });
+    if (url.pathname === '/v1/facts' && request.method === 'GET') {
+      try { return await facts(env, request, ctx); } catch { return later('temporarily unavailable'); }
+    }
     if (!keys.includes(request.headers.get('x-caw-app-key') || '')) return json(401, { error: 'unknown app key' });
     try {
       if (url.pathname === '/v1/report' && request.method === 'POST') return await postReport(env, request);

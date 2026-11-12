@@ -19,7 +19,7 @@ app ──HTTPS──▶ relay (Cloudflare Worker, free) ──▶ D1 buffer ─
 ```
 
 - **Relay:** `https://caw-telemetry.kmandevr.workers.dev` (Worker `caw-telemetry`, account "Kmandevr@gmail.com's Account"). Code in `src/`, tables in `schema/d1.sql`, config in `wrangler.toml`.
-- **D1 database:** `caw-telemetry` (`a724d0b8-8b85-44c8-96d1-a24a8a89c7e6`). Holds reports until they're published (full JSON kept 35 days, then only the receipt, its delete hash and status), the feedback queue, contact emails (180 days), and daily counters.
+- **D1 database:** `caw-telemetry` (`a724d0b8-8b85-44c8-96d1-a24a8a89c7e6`). Holds reports (full JSON kept 400 days for the dashboard, then only the receipt, its delete hash and status), the feedback queue, contact emails (180 days), and daily counters.
 - **Hourly cron (`17 * * * *`):** retries queued feedback, publishes new reports and deletions (up to 3 commits of 50 files each), and at 03:17 UTC prunes old rows; on Mondays at 03:17 it commits `summaries/<ISO week>.md` for the week just ended, split by app version (newest first).
 - **No IP addresses are stored.** Per-sender limits count a SHA-256 of the address with a salt made fresh each UTC day and deleted the next day.
 
@@ -34,6 +34,8 @@ Every request sends `X-CAW-App-Key: caw-beta-1`. It is **not a secret** (it ship
 | `POST /v1/delete` | `{"items":[{"receipt":"<32 hex>","deleteKey":"<64 hex>"}]}`, up to 100 | `202 {"deleted":<n>}`; the files leave `data/` at the next hourly run |
 | `POST /v1/feedback` | below, at most 32 KB | `201 {"issue":"<url>"}`; `202 {"status":"queued"}` when GitHub is slow (posted within the hour); `400`/`413`/`429`/`503` as above |
 | `GET /` | none | `200 {"service":"caw-telemetry relay","schema":1}` (health check, no key needed) |
+| `GET /dashboard` | none | The public dashboard page (no key needed): <https://caw-telemetry.kmandevr.workers.dev/dashboard> |
+| `GET /v1/facts?days=7\|30\|90\|365` | none | `200 {"days","from","columns":[...],"rows":[[...],...]}`: one compact row per published report in the period (no key needed; cached for an hour). The dashboard's data; anyone may use it |
 | `GET /v1/status` | none | `200 {"github":"ok","repo":...,"canWrite":true,"reportsWaiting":n,"feedbackWaiting":n}`, or `{"github":"no token set"}` / `"token cannot see the repository"`: for maintainers; never shows the token |
 
 Any other error, including the relay's own, is `503` with `Retry-After`; nothing internal is echoed.
@@ -54,15 +56,27 @@ The relay keeps only these fields (unknown ones are dropped, wrong types are a `
   "app": { "version": "1.0.0-beta.1", "engineVersion": "<letters, digits, . + ->", "capiVersion": <int>,
            "build": "<optional: 7-12 lowercase hex, the commit the build came from>" },
   "device": {
-    "platform": "android" | "windows" | "linux",
-    "osVersion": "<major version, digits only>",
+    "platform": "android" | "ios" | "windows" | "macos" | "linux",
+    "arch": "arm64" | "arm" | "x64" | "x86" | "riscv64" | "other",          // optional
+    "osName": "<e.g. Android, Windows 11, Ubuntu; printable ASCII, cut to 40>",  // optional
+    "osVersion": "<major, or major.minor[.build]: 14, 24.04, 10.0.22631>",
+    "manufacturer": "<maker, cut to 40>",                                  // optional
+    "model": "<the maker's model name or id: SM-S906B, ThinkPad X1>",         // optional
+    "formFactor": "phone" | "tablet" | "laptop" | "desktop" | "tv" | "other" | "unknown",  // optional
     "cpu": "<printable ASCII, cut to 80>",
     "cores": { "big": <int>, "little": <int>, "other": <int> },
     "maxClockMHz": [<up to 4 numbers, rounded to 100>],
     "ramGB": <whole GB>,
     "gpu": "<printable ASCII, cut to 80>",
     "refreshHz": <int>,
-    "audio": { "backend": "<a-z 0-9 _>", "exclusive": <bool>, "lowLatency": <bool>, "bufferFrames": <int>, "sampleRate": <int> },
+    "screen": { "widthPx": <rounded to 10>, "heightPx": <rounded to 10>, "dpi": <rounded to 10>?, "displays": <int>? },  // optional
+    "audio": { "backend": "<a-z 0-9 _>", "exclusive": <bool>, "lowLatency": <bool>, "bufferFrames": <int>, "sampleRate": <int>,
+               "output": "builtin" | "usb" | "bluetooth" | "wired" | "hdmi" | "displayport" | "network" | "other" | "unknown" },  // output optional
+    "peripherals": [   // optional, up to 16
+      { "kind": "audio-output" | "audio-input" | "audio-interface" | "midi" | "gamepad" | "keyboard" | "mouse" | "touch" | "pen" | "display" | "storage" | "other",
+        "connection": <as audio.output>, "model": "<maker's product name>"?, "vendorId": "<4 hex>"?, "productId": "<4 hex>"?,
+        "channels": <int>?, "inUse": <bool>? }
+    ],
     "profile": "full" | "balanced" | "lightweight" | "minimal",
     "eco": <bool>
   },
@@ -93,6 +107,7 @@ The relay keeps only these fields (unknown ones are dropped, wrong types are a `
 }
 ```
 
+- **Device and peripherals** (owner, 2026-11-12: "this is the device, this is the specs, this is the OS, this is what peripherals are running", but nothing that can identify a user). Only what the maker defines: the model name or id, the maker's product name and USB vendor/product ids of a peripheral, its kind and connection. **Never** a name the user can set (the phone's or computer's name, a Bluetooth device name, a renamed MIDI port), a serial number, a MAC or other hardware address, a port path, or a full OS build fingerprint. The relay drops any other field; the app must not put a user-set name into `model`.
 - Ids that don't match the shapes above are counted as `"other"`, so a user's own component or project names can never be published.
 - **Versions are always recorded** (owner, 2026-11-12): `app.version`, `engineVersion` and `capiVersion` are required, `schema` says which report format it is, and the optional `app.build` tells CI builds that share a version number apart. The weekly summary keeps versions apart: one row per version (and build), and the full breakdown for the newest only, so old builds' numbers never blur the current one. Anyone reading `data/` should filter by version the same way.
 - `errors[].where` must be C.A.W's own source, relative: `lib/…`, `src/…`, `engine/…`, `app/…`, `platform/…`, `include/…` or `package:caw/…`, then `:<line>`. Absolute paths (which could hold a username) are rejected.
@@ -113,6 +128,13 @@ The relay keeps only these fields (unknown ones are dropped, wrong types are a `
 ```
 
 Each becomes an Issue here titled `[<kind>] <first line>`, labelled `beta-feedback` and `fb-<kind>`. The text is shown in a code block, so it can't mention people, embed images or run markdown. Attachments are in collapsed sections. The contact email is kept privately in D1 for 180 days; the owner reads it in the Cloudflare dashboard (Workers & Pages → D1 → caw-telemetry → Console: `SELECT * FROM contacts`).
+
+## Dashboard (owner, 2026-11-12)
+
+<https://caw-telemetry.kmandevr.workers.dev/dashboard>: an overview page (the owner's choice over compare-first and explorer layouts), mobile-friendly, light and dark. Filters at the top (period, version, platform, architecture, form factor, channel); summary cards; then charts for activity and versions, platforms and devices (platform and architecture, OS, manufacturer, model, form factor, CPU, GPU, memory, refresh rate), audio and peripherals, performance (worst callback, CPU load, worst callback by device, dropouts by platform, startup, frame times, scheduling, profile), stress tests and errors. Comparing is done by changing filters.
+
+- Source: `src/dashboard.html`; `npm run build` writes `src/dashboard.js`, the module the Worker serves (a test fails if they differ). Charts are drawn with plain DOM and SVG: no libraries.
+- Data: `GET /v1/facts`, built inside D1 and cached for an hour, so viewing it costs at most one query per period per hour.
 
 ## Setup (once, owner)
 
@@ -137,7 +159,7 @@ Nobody else ever sees the token: it lives only in Cloudflare's secret store.
 | Cron Triggers per account | 5 | 1 |
 | D1 rows written | 100,000 a day | about 50,000 worst case |
 | D1 rows read | 5 million a day | far below |
-| D1 storage | 5 GB | old report bodies pruned after 35 days |
+| D1 storage | 5 GB | about 2 KB a report; report bodies pruned after 400 days (even at the daily cap that is under 4 GB) |
 
 Over a limit, the free plan fails requests until midnight UTC; it never bills ([D1 change, 2026-09-01](https://developers.cloudflare.com/changelog/post/2026-09-01-d1-free-tier-limit-enforcement/), [Workers limits](https://developers.cloudflare.com/workers/platform/limits/), [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/)). The app keeps anything refused and retries the next day. The weekly summary shows usage against the caps. If the beta outgrows them, don't upgrade: ask the owner (options: sample reports, send weekly, drop fields).
 

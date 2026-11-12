@@ -17,7 +17,8 @@ This policy covers the beta builds of the C.A.W app. It is written to be read in
 At most once a day, while telemetry is on, one report containing:
 
 - **The app:** version, engine version, beta or release channel, the day the report covers (no time of day).
-- **Your device:** platform and major OS version, CPU name and number of core types with their top speeds (rounded), memory (rounded to a GB), graphics renderer name, screen refresh rate, audio settings (backend, buffer size, sample rate, exclusive or shared mode), and the app's performance profile and Eco setting.
+- **Your device:** platform (Android, iOS, Windows, macOS or Linux) and processor architecture (such as arm64 or x64), the OS name and version, the device's maker, model and type (phone, tablet, laptop, desktop), CPU name and number of core types with their top speeds (rounded), memory (rounded to a GB), graphics renderer name, screen size (rounded), pixel density and refresh rate, audio settings (backend, buffer size, sample rate, exclusive or shared mode, and how audio comes out: built-in, USB, Bluetooth and so on), and the app's performance profile and Eco setting.
+- **Peripherals:** the kinds of devices connected (audio interface, MIDI controller, headphones, keyboard, gamepad and so on), how they're connected, and their maker's product name and USB ids. Never a name you've given a device (like "Sam's headphones"), a serial number or a hardware address.
 - **Performance:** CPU-load spread, audio dropouts, the slowest audio callback, frame times, startup time, thermal and battery-saver events, and whether the system's audio scheduling help was on.
 - **Use of the app:** minutes open and playing (rounded to 5), minutes on each screen, how often each **built-in** instrument and effect is used, and a size range for your project (for example "5–8 tracks").
 - **Stress-test results,** if you ran the built-in stress test.
@@ -27,7 +28,7 @@ The exact format is published in [PLAN.md](PLAN.md#report-schema-v1). The relay 
 
 ## What is never sent
 
-Your name, accounts (including GitHub), email or contact details, IP address, location, contacts, projects or their names, audio, recordings, MIDI devices or notes, code you write, names of your own components or presets, file names or paths, or any identifier that links one report to another or to you.
+Your name, accounts (including GitHub), email or contact details, IP address, location, contacts, projects or their names, audio, recordings, the notes you play, code you write, names of your own components or presets, names you've given your devices, serial numbers or hardware addresses, file names or paths, or any identifier that links one report to another or to you.
 
 Each report carries a random **receipt** made on your device for that one report. Your device keeps the list so it can show you your reports; nothing else connects them.
 
@@ -55,7 +56,7 @@ If you send feedback from the app, your text and any attachments you choose (dev
 
 ## Retention
 
-Published reports and summaries stay public until deleted as above. The relay's copy of a report's contents is removed after 35 days; it keeps only the receipt, a one-way fingerprint of its delete key and its status, so deletion keeps working. Contact emails from feedback are deleted after 180 days.
+Published reports and summaries stay public until deleted as above, and are shown in aggregate on the [public dashboard](https://caw-telemetry.kmandevr.workers.dev/dashboard). The relay's copy of a report's contents is removed after about 13 months (400 days); it keeps only the receipt, a one-way fingerprint of its delete key and its status, so deletion keeps working. Contact emails from feedback are deleted after 180 days.
 
 ## Children
 
