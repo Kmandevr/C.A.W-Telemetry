@@ -2,7 +2,7 @@
 
 Everything C.A.W collects, in the open. This repository holds the anonymous telemetry from the [C.A.W](https://github.com/Kmandevr/C.A.W) app's open alpha and beta, the weekly summaries made from it, feedback (as Issues), and the small relay that receives them.
 
-C.A.W collects **nothing about you**: no names, accounts, projects, audio, MIDI, file paths, location or any ID that follows you. It collects which device and platform it runs on and how well (device model and specs, OS, connected peripherals by kind and model, CPU load, dropouts, frame times, stress-test results), which built-in features are used, and error locations in C.A.W's own code. The full list is in [PRIVACY.md](PRIVACY.md); the exact format is in [PLAN.md](PLAN.md#report-schema-v1).
+C.A.W collects **nothing about you**: no names, accounts, projects, audio, MIDI, file paths, location or any ID that follows you. It collects which device and platform it runs on and how well (device model and specs, OS, connected peripherals by kind and model, CPU load, dropouts, frame times, Benchmark results), which built-in features are used, and error locations in C.A.W's own code. The full list is in [PRIVACY.md](PRIVACY.md); the exact format is in [PLAN.md](PLAN.md#report-schema-v1).
 
 ## What's here
 

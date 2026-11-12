@@ -305,7 +305,7 @@ test('report kind: stress runs count in stress results, not in device counts', (
   const md = summarise([daily, ...runs], '2026-W46', '- none');
   assert.match(md, /\| 1\.0\.0-beta\.1 \| 1 \+ 3 \|/);
   assert.ok(!md.includes('Benchmark Fan CPU'), 'stress runs do not count as extra devices');
-  assert.match(md, /normal comfortable, heavy tight, extreme over \| 3 \|/);
+  assert.match(md, /Normal comfortable, Heavy tight, Extreme over budget \| 3 \|/);
 });
 
 test('isoWeek and summarise handle edges', () => {

@@ -298,7 +298,7 @@ export function compareVersions(a, b) {
 const versionOf = (r) => r.app.build ? `${r.app.version} (${r.app.build})` : r.app.version;
 
 // One version's (or one build's) numbers. Devices and performance come from daily reports (so a tester who ran the
-// stress test many times counts once a day); stress results come from stress-test runs.
+// Benchmark many times counts once a day); Benchmark results come from Benchmark runs (kind "stress").
 function section(all) {
   const reports = all.filter((r) => r.kind !== 'stress');
   const platforms = new Map(), cpus = new Map(), tiers = new Map(), costs = new Map(), errs = new Map(), hints = new Map();
@@ -312,7 +312,8 @@ function section(all) {
     for (const e of r.errors) tally(errs, `${e.type} at ${e.where}`, e.count);
   }
   for (const r of all) if (r.stress) {
-    tally(tiers, `normal ${r.stress.tiers.normal}, heavy ${r.stress.tiers.heavy}, extreme ${r.stress.tiers.extreme}`);
+    const tier = (t) => (t === 'over' ? 'over budget' : t);
+    tally(tiers, `Normal ${tier(r.stress.tiers.normal)}, Heavy ${tier(r.stress.tiers.heavy)}, Extreme ${tier(r.stress.tiers.extreme)}`);
     for (const c of r.stress.topCosts) tally(costs, c.component, c.pct);
   }
   const rows = (m) => top(m).map(([k, v]) => `| ${k} | ${Math.round(v * 10) / 10} |`).join('\n') || '| (none) | |';
@@ -348,7 +349,7 @@ ${rows(peripherals)}
 |---|---:|
 ${rows(hints)}
 
-### Stress tests
+### Benchmark
 | Tiers | Runs |
 |---|---:|
 ${rows(tiers)}
@@ -399,7 +400,7 @@ ${reports.length} reports. Every number here comes from the published files in \
 older builds don't blur the newest one.
 
 ## By version (newest first)
-| Version (build) | Daily reports + stress runs | Median worst callback | With dropouts | Median startup | Median p99 frame | Errors |
+| Version (build) | Daily reports + Benchmark runs | Median worst callback | With dropouts | Median startup | Median p99 frame | Errors |
 |---|---:|---:|---:|---:|---:|---:|
 ${table}
 

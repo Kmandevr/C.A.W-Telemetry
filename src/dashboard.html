@@ -103,7 +103,7 @@ svg text { fill: var(--muted); font-size: 10px; }
 
     <h2>Performance</h2>
     <div class="grid">
-      <div class="panel"><h3>Worst audio callback (% of budget)</h3><div id="c-worst"></div><p class="note">Over 100% means the audio missed its deadline at least once.</p></div>
+      <div class="panel"><h3>Worst audio callback (% of budget)</h3><div id="c-worst"></div><p class="note">Over 100% means the audio missed its deadline at least once (over budget).</p></div>
       <div class="panel"><h3>Time spent at each CPU load</h3><div id="c-load"></div><p class="note">Average share of playing time in each 10% load band.</p></div>
       <div class="panel"><h3>Median worst callback by device</h3><div id="c-worst-model"></div></div>
       <div class="panel"><h3>Reports with dropouts, by platform</h3><div id="c-drop"></div></div>
@@ -113,7 +113,7 @@ svg text { fill: var(--muted); font-size: 10px; }
       <div class="panel"><h3>Performance profile</h3><div id="c-profile"></div></div>
     </div>
 
-    <h2>Stress tests</h2>
+    <h2>Benchmark</h2>
     <div class="grid">
       <div class="panel"><h3>Tier results</h3><div id="c-tiers"></div></div>
       <div class="panel"><h3>Median track limit by device</h3><div id="c-limit"></div></div>
@@ -195,7 +195,7 @@ svg text { fill: var(--muted); font-size: 10px; }
     const f = { version: $('f-version').value, platform: $('f-platform').value, arch: $('f-arch').value, form: $('f-form').value, channel: $('f-channel').value };
     const matching = data.filter((r) => (f.version === ALL || r.version === f.version) && (f.platform === ALL || r.platform === f.platform)
       && (f.arch === ALL || r.arch === f.arch) && (f.form === ALL || r.formFactor === f.form) && (f.channel === ALL || r.channel === f.channel));
-    // Daily reports for devices and performance (a tester's repeated stress runs count once a day); stress runs below.
+    // Daily reports for devices and performance (a tester's repeated Benchmark runs count once a day); Benchmark runs below.
     const rows = matching.filter((r) => r.kind !== 'stress');
     const n = rows.length;
 
@@ -203,7 +203,7 @@ svg text { fill: var(--muted); font-size: 10px; }
     const card = (v, k) => { const c = el('div', 'card'); c.append(el('div', 'v', v), el('div', 'k', k)); cards.append(c); };
     const mw = median(rows.map((r) => r.worstPct)), ms = median(rows.map((r) => r.startupMs)), mp = median(rows.map((r) => r.p99ms));
     card(String(n), 'daily reports');
-    card(String(matching.length - n), 'stress-test runs');
+    card(String(matching.length - n), 'Benchmark runs');
     card(String(count(rows, (r) => r.model || r.cpu).size), 'distinct devices');
     card(mw === null ? '–' : `${mw}%`, 'median worst callback');
     const dk = rows.filter((r) => known(r.dropouts));
@@ -250,10 +250,12 @@ svg text { fill: var(--muted); font-size: 10px; }
     bars('c-startup', medBy(plat, (r) => r.startupMs), { fmt: (v) => `${v}` });
     bars('c-frames', medBy((r) => (r.refreshHz ? `${r.refreshHz} Hz` : null), (r) => r.p99ms), { fmt: (v) => `${v}` });
     bars('c-sched', sorted(count(rows, (r) => `${r.platform}: hint ${r.schedHint}, ${r.coreType} core`)), { pctOf: n });
-    bars('c-profile', sorted(count(rows, (r) => r.profile)), { pctOf: n });
+    const PROFILES = { full: 'Full Experience', balanced: 'Balanced', lightweight: 'Lightweight', minimal: 'Minimal' };
+    bars('c-profile', sorted(count(rows, (r) => PROFILES[r.profile] || r.profile)), { pctOf: n });
 
     const runs = matching.filter((r) => r.stress);
-    bars('c-tiers', sorted(count(runs, (r) => `normal ${r.stress.tiers.normal} · heavy ${r.stress.tiers.heavy} · extreme ${r.stress.tiers.extreme}`)), { pctOf: runs.length });
+    const tier = (t) => (t === 'over' ? 'over budget' : t);
+    bars('c-tiers', sorted(count(runs, (r) => `Normal ${tier(r.stress.tiers.normal)} · Heavy ${tier(r.stress.tiers.heavy)} · Extreme ${tier(r.stress.tiers.extreme)}`)), { pctOf: runs.length });
     const lim = new Map(); for (const r of runs) { const k = r.model || r.cpu; if (!lim.has(k)) lim.set(k, []); lim.get(k).push(r.stress.limits.tracks); }
     bars('c-limit', [...lim].map(([k, xs]) => [`${k} (${xs.length})`, median(xs)]).sort((a, b) => b[1] - a[1]), { fmt: (v) => `${v} tracks`, limit: 15 });
     const costs = new Map(); for (const r of runs) for (const c of r.stress.topCosts) costs.set(c.component, (costs.get(c.component) || 0) + c.pct);
