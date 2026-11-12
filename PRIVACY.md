@@ -14,7 +14,7 @@ This policy covers the beta builds of the C.A.W app. It is written to be read in
 
 ## What is sent
 
-At most once a day, while telemetry is on, one report containing:
+While telemetry is on, at most one report a day, plus one report each time you run the built-in stress test (at most 10 reports a day in all), containing:
 
 - **The app:** version, engine version, beta or release channel, the day the report covers (no time of day).
 - **Your device:** platform (Android, iOS, Windows, macOS or Linux) and processor architecture (such as arm64 or x64), the OS name and version, the device's maker, model and type (phone, tablet, laptop, desktop), CPU name and number of core types with their top speeds (rounded), memory (rounded to a GB), graphics renderer name, screen size (rounded), pixel density and refresh rate, audio settings (backend, buffer size, sample rate, exclusive or shared mode, and how audio comes out: built-in, USB, Bluetooth and so on), and the app's performance profile and Eco setting.

@@ -40,7 +40,7 @@ Every request sends `X-CAW-App-Key: caw-beta-1`. It is **not a secret** (it ship
 
 Any other error, including the relay's own, is `503` with `Retry-After`; nothing internal is echoed.
 
-**Limits:** per sender per UTC day: 10 reports, 5 feedback posts, 200 lookups. Whole relay per day: 5,000 reports, 300 feedback posts, 10,000 lookups. The app sends at most one report a day.
+**Limits:** per sender per UTC day: 10 reports, 5 feedback posts, 200 lookups. Whole relay per day: 5,000 reports, 300 feedback posts, 10,000 lookups. The app sends one report a day, plus one per stress-test run (owner, 2026-11-12), never more than the 10 a day per sender. `POST /v1/delete` accepts any receipt and key: unknown or already deleted receipts are simply not counted in `deleted`.
 
 ### Report schema v1
 
