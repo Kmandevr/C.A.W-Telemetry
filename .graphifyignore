@@ -1,0 +1,9 @@
+# Graphify skips these: tooling, caches, and the published data (thousands of report files with no code in them).
+graphify-out/
+.claude/
+.git/
+.serena/
+node_modules/
+.wrangler/
+data/
+summaries/

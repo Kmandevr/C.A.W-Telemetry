@@ -1,0 +1,1 @@
+Tests for the relay (node --test; SQLite stands in for D1, a fake stands in for GitHub).

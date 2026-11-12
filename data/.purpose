@@ -1,0 +1,1 @@
+Published reports, one JSON file each (data/<first 2 hex chars of receipt>/<receipt>.json). Written by the relay only.

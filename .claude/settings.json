@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.claude/tools/graph.sh:*)",
+      "Bash(.claude/tools/tree.sh:*)",
+      "Bash(.claude/skills/code-nav/check.sh)",
+      "Bash(graphify:*)",
+      "Bash(uv tool install graphifyy)",
+      "Bash(npm test)",
+      "Bash(node --test:*)",
+      "mcp__serena"
+    ],
+    "ask": [
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push origin --delete:*)",
+      "Bash(git branch -D:*)",
+      "Bash(npx wrangler deploy:*)",
+      "Bash(wrangler deploy:*)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh" } ] }
+    ],
+    "PreToolUse": [
+      { "matcher": "Read|Grep|mcp__serena__.*",
+        "hooks": [ { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/tools/serena-hook.sh remind" } ] }
+    ],
+    "SessionEnd": [
+      { "hooks": [ { "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/tools/serena-hook.sh cleanup" } ] }
+    ]
+  },
+  "enabledMcpjsonServers": ["serena"],
+  "env": { "MCP_TIMEOUT": "120000" }
+}

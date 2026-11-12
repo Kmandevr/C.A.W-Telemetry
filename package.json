@@ -1,7 +1,10 @@
 {
   "name": "caw-telemetry-relay",
+  "description": "The C.A.W beta relay (Cloudflare Worker) and its tests.",
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
-  "scripts": { "test": "node --test test/*.test.js" }
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
 }
