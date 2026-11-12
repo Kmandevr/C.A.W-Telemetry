@@ -1,0 +1,7 @@
+{
+  "name": "caw-telemetry-relay",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": { "test": "node --test test/*.test.js" }
+}

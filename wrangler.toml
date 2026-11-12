@@ -1,0 +1,21 @@
+# The relay's Cloudflare Worker (free plan). Secrets are never in this file: GITHUB_TOKEN is set as a Worker
+# secret (PLAN.md, "Setup").
+name = "caw-telemetry"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[vars]
+REPO = "Kmandevr/C.A.W-Telemetry"
+APP_KEYS = "caw-beta-1"          # not secret: blocks casual spam only; the app sends it as X-CAW-App-Key
+DAILY_REPORT_CAP = "5000"
+DAILY_FEEDBACK_CAP = "300"
+DAILY_LOOKUP_CAP = "10000"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "caw-telemetry"
+database_id = "a724d0b8-8b85-44c8-96d1-a24a8a89c7e6"
+
+[triggers]
+crons = ["17 * * * *"]           # hourly: publish; at 03:17 UTC also prune, and on Mondays summarise
