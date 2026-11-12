@@ -1,11 +1,11 @@
 <!doctype html>
-<!-- The beta telemetry dashboard (served by the relay at /dashboard). Source of src/dashboard.js: run `npm run build`. -->
+<!-- The telemetry dashboard (served by the relay at /dashboard). Source of src/dashboard.js: run `npm run build`. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="C.A.W beta telemetry: devices, platforms, peripherals and how well C.A.W runs on them.">
-<title>C.A.W Beta Telemetry</title>
+<meta name="description" content="C.A.W telemetry: devices, platforms, peripherals and how well C.A.W runs on them.">
+<title>C.A.W Telemetry</title>
 <style>
 :root {
   --bg: #f6f7f9; --card: #ffffff; --ink: #16181d; --muted: #5d6573; --line: #e3e6eb;
@@ -54,8 +54,8 @@ svg text { fill: var(--muted); font-size: 10px; }
 </head>
 <body>
 <header>
-  <h1>C.A.W Beta Telemetry</h1>
-  <p class="sub">Anonymous device and performance data from C.A.W beta builds. Nothing here identifies anyone. Every report is public in
+  <h1>C.A.W Telemetry</h1>
+  <p class="sub">Anonymous device and performance data from C.A.W's open alpha and beta builds. Nothing here identifies anyone. Every report is public in
     <a href="https://github.com/Kmandevr/C.A.W-Telemetry">Kmandevr/C.A.W-Telemetry</a>. Updated hourly.</p>
 </header>
 <div class="filters"><div class="row">
@@ -64,7 +64,7 @@ svg text { fill: var(--muted); font-size: 10px; }
   <label>Platform<select id="f-platform"></select></label>
   <label>Architecture<select id="f-arch"></select></label>
   <label>Form factor<select id="f-form"></select></label>
-  <label>Channel<select id="f-channel"></select></label>
+  <label>Release<select id="f-channel"></select></label>
 </div></div>
 <main>
   <div id="status">Loading…</div>
@@ -276,7 +276,9 @@ svg text { fill: var(--muted); font-size: 10px; }
       options('f-platform', [...new Set(data.map((r) => r.platform))].sort(), 'platforms');
       options('f-arch', [...new Set(data.map((r) => r.arch).filter(Boolean))].sort(), 'architectures');
       options('f-form', [...new Set(data.map((r) => r.formFactor).filter(Boolean))].sort(), 'form factors');
-      options('f-channel', [...new Set(data.map((r) => r.channel))].sort(), 'channels');
+      // Contract value beta = any testing build (open alpha or Beta channel); release = a future official release.
+      options('f-channel', [...new Set(data.map((r) => r.channel))].sort(), 'releases');
+      for (const o of $('f-channel').options) o.textContent = ({ beta: 'Testing (alpha and beta)', release: 'Official release' })[o.value] || o.textContent;
       $('status').hidden = true; $('content').hidden = false;
       render();
       if (!data.length) { $('status').hidden = false; $('status').textContent = `No published reports in this period yet (since ${j.from}).`; }

@@ -257,7 +257,7 @@ test('dashboard: served, in sync with its HTML; facts: compact rows of published
   const e = env();
   const page = await worker.fetch(new Request('https://relay.example/dashboard'), e);
   assert.equal(page.status, 200);
-  assert.match(await page.text(), /C\.A\.W Beta Telemetry/);
+  assert.match(await page.text(), /C\.A\.W Telemetry/);
   globalThis.fetch = fakeGitHub().fetch;
   const d = { ...report().device, arch: 'arm64', model: 'SM-S906B', manufacturer: 'samsung',
     peripherals: [{ kind: 'midi', connection: 'usb', model: 'KeyStep 37' }] };

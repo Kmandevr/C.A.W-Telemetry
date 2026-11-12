@@ -1,11 +1,12 @@
-# Plan: the C.A.W beta relay and data
+# Plan: the C.A.W telemetry relay and data
 
 Owner decisions of 2026-11-12, as built. The C.A.W app's side is built in `Kmandevr/C.A.W` by a separate session; **this file and that repo's `docs/decisions.md` hold the shared contract**. Change it only with the owner, in both places.
 
 ## Decisions (owner, 2026-11-12)
 
 - **Purpose:** device specs and how well C.A.W runs on them, so the owner can make design decisions. Nothing about the user is collected.
-- **Defaults:** beta builds send telemetry by default; release builds don't, and ask. Switching from beta to release turns it off and asks once. First run shows the Privacy Policy and Terms; continuing accepts them. It can be turned off at any time in Settings › About and beta › Privacy.
+- **Names (owner, 2026-11-12, C.A.W `docs/decisions.md`):** the public app is the **open alpha** (1.0.0-alpha.N); **beta** is the Beta channel's builds of changes not yet in the alpha. Both are testing releases, and both send the contract's `channel: "beta"`; `"release"` is kept for a future official release. The version string says which line a report came from.
+- **Defaults:** testing builds (open alpha and beta) send telemetry by default; an official release won't, and asks. Moving from a testing build to an official release turns it off and asks once. First run shows the Privacy Policy and Terms; continuing accepts them. It can be turned off at any time in Settings › About and beta › Privacy.
 - **Full transparency:** every report is published in this public repository. Feedback is posted as public Issues here. Optional contact emails are never published.
 - **No user ID:** each report has a fresh random receipt (128 bits) made on the device; nothing links reports to each other or to a person. Users find their own reports through the app's "My data".
 - **Zero cost:** Cloudflare Workers Free plan, no payment method; Actions only in public repos (free standard runners).

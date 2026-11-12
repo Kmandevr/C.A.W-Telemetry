@@ -1,6 +1,6 @@
 # C.A.W-Telemetry
 
-Everything C.A.W collects, in the open. This repository holds the anonymous beta telemetry from the [C.A.W](https://github.com/Kmandevr/C.A.W) app, the weekly summaries made from it, beta feedback (as Issues), and the small relay that receives them.
+Everything C.A.W collects, in the open. This repository holds the anonymous telemetry from the [C.A.W](https://github.com/Kmandevr/C.A.W) app's open alpha and beta, the weekly summaries made from it, feedback (as Issues), and the small relay that receives them.
 
 C.A.W collects **nothing about you**: no names, accounts, projects, audio, MIDI, file paths, location or any ID that follows you. It collects which device and platform it runs on and how well (device model and specs, OS, connected peripherals by kind and model, CPU load, dropouts, frame times, stress-test results), which built-in features are used, and error locations in C.A.W's own code. The full list is in [PRIVACY.md](PRIVACY.md); the exact format is in [PLAN.md](PLAN.md#report-schema-v1).
 
@@ -14,7 +14,7 @@ C.A.W collects **nothing about you**: no names, accounts, projects, audio, MIDI,
 | Issues labelled `beta-feedback` | Feedback sent from the app (bug, idea, confusing, praise). |
 | `src/`, `schema/`, `test/`, `wrangler.toml` | The relay: a Cloudflare Worker on the free plan. |
 | [PLAN.md](PLAN.md) | How it all works, the contract with the app, setup and limits. |
-| [PRIVACY.md](PRIVACY.md), [TERMS.md](TERMS.md) | The beta's Privacy Policy and Terms. |
+| [PRIVACY.md](PRIVACY.md), [TERMS.md](TERMS.md) | The Privacy Policy and Terms for the open alpha and beta. |
 
 ## Deleting your data
 

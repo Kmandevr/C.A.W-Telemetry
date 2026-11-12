@@ -1,4 +1,4 @@
-// The C.A.W beta relay: a Cloudflare Worker between the app and this repository.
+// The C.A.W telemetry relay: a Cloudflare Worker between the app and this repository.
 // - POST /v1/report, GET /v1/report/<receipt>, POST /v1/delete: anonymous telemetry, buffered in D1 and published
 //   to data/ once a day by the scheduled run.
 // - POST /v1/feedback: posts a public Issue in this repository; an optional contact email stays private in D1.
@@ -179,7 +179,7 @@ function feedbackIssue(f) {
     if (value === undefined) continue;
     parts.push('', `<details><summary>Attached: ${name}</summary>`, '', fenced(JSON.stringify(value, null, 2)), '', '</details>');
   }
-  parts.push('', '_Sent from the app through the beta relay. Contact details, if any, are never published._');
+  parts.push('', '_Sent from the app through the telemetry relay. Contact details, if any, are never published._');
   return {
     title: `[${f.kind}] ${first}`,
     body: parts.join('\n'),
@@ -393,7 +393,7 @@ export function summarise(reports, week, usage) {
     return `| ${v} | ${byVersion.get(v).filter((r) => r.kind !== 'stress').length} + ${byVersion.get(v).filter((r) => r.kind === 'stress').length} | ${s.worst}% | ${s.dropouts} | ${s.startup} ms | ${s.p99} ms | ${s.errors} |`;
   }).join('\n') || '| (none) | | | | | | |';
   const newest = versions[0];
-  return `# Beta summary, ${week}
+  return `# Telemetry summary, ${week}
 
 ${reports.length} reports. Every number here comes from the published files in \`data/\`; charts are on the [dashboard](https://caw-telemetry.kmandevr.workers.dev/dashboard). Versions are kept apart, so
 older builds don't blur the newest one.

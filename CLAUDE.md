@@ -1,6 +1,6 @@
 # C.A.W-Telemetry
 
-The public home of everything [C.A.W](https://github.com/Kmandevr/C.A.W) collects or uses that isn't C.A.W's own code: anonymous beta telemetry (`data/`), weekly summaries (`summaries/`), beta feedback (Issues), the privacy policy and terms, and the relay that receives them (a Cloudflare Worker: `src/`, `schema/`, `wrangler.toml`). [PLAN.md](PLAN.md) holds the owner's decisions, the contract with the app, setup and free-plan limits; read it before changing anything.
+The public home of everything [C.A.W](https://github.com/Kmandevr/C.A.W) collects or uses that isn't C.A.W's own code: anonymous telemetry from the open alpha and beta (`data/`), weekly summaries (`summaries/`), feedback (Issues), the privacy policy and terms, and the relay that receives them (a Cloudflare Worker: `src/`, `schema/`, `wrangler.toml`). [PLAN.md](PLAN.md) holds the owner's decisions, the contract with the app, setup and free-plan limits; read it before changing anything.
 
 ## Rules
 

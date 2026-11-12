@@ -1,22 +1,22 @@
-# C.A.W beta Privacy Policy
+# C.A.W Privacy Policy (open alpha and beta)
 
 **Draft, 2026-11-12. Not yet reviewed by a lawyer.**
 
-This policy covers the beta builds of the C.A.W app. It is written to be read in full.
+This policy covers C.A.W's testing releases: the **open alpha** (the public app, versions like 1.0.0-alpha.1) and **beta** builds (the Beta channel's builds of changes not yet in the alpha). Everyone using them is a tester. It is written to be read in full.
 
 ## The short version
 
 - C.A.W sends **anonymous data about how well it runs on your device**: device specs, performance and which built-in features are used.
 - It collects **nothing about you**: no name, account, email (unless you choose to add one to feedback), project, audio, MIDI, file path, location or ID that follows you.
 - **Everything collected is public** in [this repository](https://github.com/Kmandevr/C.A.W-Telemetry), so anyone, including you, can see exactly what was sent.
-- In beta builds it's **on by default**. Turn it off at any time: **Settings › About and beta › Privacy** (Settings is in the project menu: tap the project name). In release builds it's off unless you turn it on.
+- In the open alpha and beta it's **on by default**. Turn it off at any time: **Settings › About and beta › Privacy** (Settings is in the project menu: tap the project name). In a future official release it will be off unless you turn it on.
 - You can see, check and delete your own reports in **Settings › About and beta › Privacy › My data**.
 
 ## What is sent
 
 While telemetry is on, at most one report a day, plus one report each time you run the **Stress test** (at most 10 reports a day in all), containing:
 
-- **The app:** version, engine version, beta or release channel, the day the report covers (no time of day).
+- **The app:** version (which says whether it's an alpha or beta build), engine version, whether it's a testing or official release, the day the report covers (no time of day).
 - **Your device:** platform (Android, iOS, Windows, macOS or Linux) and processor architecture (such as arm64 or x64), the OS name and version, the device's maker, model and type (phone, tablet, laptop, desktop), CPU name and number of core types with their top speeds (rounded), memory (rounded to a GB), graphics renderer name, screen size (rounded), pixel density and refresh rate, audio settings (backend, buffer size, sample rate, exclusive or shared mode, and how audio comes out: built-in, USB, Bluetooth and so on), and the app's performance profile and Eco setting.
 - **Peripherals:** the kinds of devices connected (audio interface, MIDI controller, headphones, keyboard, gamepad and so on), how they're connected, and their maker's product name and USB ids. Never a name you've given a device (like "Sam's headphones"), a serial number or a hardware address.
 - **Performance:** CPU-load spread, audio dropouts, the slowest audio callback, frame times, startup time, thermal and battery-saver events, and whether the system's audio scheduling help was on.
