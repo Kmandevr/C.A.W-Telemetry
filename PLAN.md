@@ -5,7 +5,7 @@ Owner decisions of 2026-11-12, as built. The C.A.W app's side is built in `Kmand
 ## Decisions (owner, 2026-11-12)
 
 - **Purpose:** device specs and how well C.A.W runs on them, so the owner can make design decisions. Nothing about the user is collected.
-- **Defaults:** beta builds send telemetry by default; release builds don't, and ask. Switching from beta to release turns it off and asks once. First run shows the privacy policy and terms; continuing accepts them. It can be turned off at any time in Settings → Privacy.
+- **Defaults:** beta builds send telemetry by default; release builds don't, and ask. Switching from beta to release turns it off and asks once. First run shows the Privacy Policy and Terms; continuing accepts them. It can be turned off at any time in Settings › About and beta › Privacy.
 - **Full transparency:** every report is published in this public repository. Feedback is posted as public Issues here. Optional contact emails are never published.
 - **No user ID:** each report has a fresh random receipt (128 bits) made on the device; nothing links reports to each other or to a person. Users find their own reports through the app's "My data".
 - **Zero cost:** Cloudflare Workers Free plan, no payment method; Actions only in public repos (free standard runners).

@@ -1,4 +1,4 @@
-# C.A.W beta privacy policy
+# C.A.W beta Privacy Policy
 
 **Draft, 2026-11-12. Not yet reviewed by a lawyer.**
 
@@ -9,19 +9,19 @@ This policy covers the beta builds of the C.A.W app. It is written to be read in
 - C.A.W sends **anonymous data about how well it runs on your device**: device specs, performance and which built-in features are used.
 - It collects **nothing about you**: no name, account, email (unless you choose to add one to feedback), project, audio, MIDI, file path, location or ID that follows you.
 - **Everything collected is public** in [this repository](https://github.com/Kmandevr/C.A.W-Telemetry), so anyone, including you, can see exactly what was sent.
-- In beta builds it's **on by default**. Turn it off at any time: **Settings → Privacy**. In release builds it's off unless you turn it on.
-- You can see, check and delete your own reports in **Settings → Privacy → My data**.
+- In beta builds it's **on by default**. Turn it off at any time: **Settings › About and beta › Privacy** (Settings is in the project menu: tap the project name). In release builds it's off unless you turn it on.
+- You can see, check and delete your own reports in **Settings › About and beta › Privacy › My data**.
 
 ## What is sent
 
-While telemetry is on, at most one report a day, plus one report each time you run the built-in stress test (at most 10 reports a day in all), containing:
+While telemetry is on, at most one report a day, plus one report each time you run the **Stress test** (at most 10 reports a day in all), containing:
 
 - **The app:** version, engine version, beta or release channel, the day the report covers (no time of day).
 - **Your device:** platform (Android, iOS, Windows, macOS or Linux) and processor architecture (such as arm64 or x64), the OS name and version, the device's maker, model and type (phone, tablet, laptop, desktop), CPU name and number of core types with their top speeds (rounded), memory (rounded to a GB), graphics renderer name, screen size (rounded), pixel density and refresh rate, audio settings (backend, buffer size, sample rate, exclusive or shared mode, and how audio comes out: built-in, USB, Bluetooth and so on), and the app's performance profile and Eco setting.
 - **Peripherals:** the kinds of devices connected (audio interface, MIDI controller, headphones, keyboard, gamepad and so on), how they're connected, and their maker's product name and USB ids. Never a name you've given a device (like "Sam's headphones"), a serial number or a hardware address.
 - **Performance:** CPU-load spread, audio dropouts, the slowest audio callback, frame times, startup time, thermal and battery-saver events, and whether the system's audio scheduling help was on.
 - **Use of the app:** minutes open and playing (rounded to 5), minutes on each screen, how often each **built-in** instrument and effect is used, and a size range for your project (for example "5–8 tracks").
-- **Stress-test results,** if you ran the built-in stress test.
+- **Stress test results,** if you ran the Stress test.
 - **Errors:** the type of error and where in C.A.W's own code it happened, with a count.
 
 The exact format is published in [PLAN.md](PLAN.md#report-schema-v1). The relay drops anything not on that list, and rounds numbers itself so nothing more exact can be published.
@@ -44,13 +44,13 @@ Cloudflare and GitHub process the requests as hosting providers, under their own
 
 ## Feedback
 
-If you send feedback from the app, your text and any attachments you choose (device info, stress-test result, error log; each shown to you before sending) are posted as a **public** Issue in this repository. Please don't include personal details. If you add a contact email, it is **not** published: it's kept privately for up to 180 days so the developer can reply, then deleted.
+If you use **Send feedback** in the app, your text and any attachments you choose (device info, stress-test result, error log; each shown to you before sending) are posted as a **public** Issue in this repository. Please don't include personal details. If you add a contact email, it is **not** published: it's kept privately for up to 180 days so the developer can reply, then deleted.
 
 ## Your choices
 
-- **Turn it off:** Settings → Privacy. Nothing more is sent, and anything waiting to be sent is deleted from your device.
-- **See it:** Settings → Privacy → My data shows every report your device sent, exactly as sent, with a link to its public file.
-- **Delete it:** Settings → Privacy → My data → Delete my data. Your device holds a secret key for each report; with it, the relay removes the files from `data/` within about an hour.
+- **Turn it off:** Settings › About and beta › Privacy. Nothing more is sent, and anything waiting to be sent is deleted from your device.
+- **See it:** Settings › About and beta › Privacy › My data shows every report your device sent, exactly as sent, with a link to its public file.
+- **Delete it:** Settings › About and beta › Privacy › My data › Delete my data. Your device holds a secret key for each report; with it, the relay removes the files from `data/` within about an hour.
   - Git keeps the history of a repository, and others may already have copied public files. Deleted reports may therefore remain in the repository's history and in copies made before deletion. They contain nothing about you, by design.
   - If you reinstall the app, your device's list of receipts is gone, and nobody can find your old reports for you, because nothing links them to you. To keep the list, use "Export my receipts" first.
 

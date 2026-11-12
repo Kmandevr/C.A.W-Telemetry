@@ -8,17 +8,17 @@ C.A.W collects **nothing about you**: no names, accounts, projects, audio, MIDI,
 
 | Path | What it is |
 |---|---|
-| `data/<xx>/<receipt>.json` | One file per report, exactly as published. `<receipt>` is a random ID your device made for that one report; the app's **Settings → Privacy → My data** lists yours, with links. |
+| `data/<xx>/<receipt>.json` | One file per report, exactly as published. `<receipt>` is a random ID your device made for that one report; the app's **Settings › About and beta › Privacy › My data** lists yours, with links. |
 | `summaries/<year>-W<week>.md` | A weekly summary: devices, performance, what holds them back, errors. |
 | [Dashboard](https://caw-telemetry.kmandevr.workers.dev/dashboard) | Charts of all of it, with filters by period, version, platform, architecture and device type. |
 | Issues labelled `beta-feedback` | Feedback sent from the app (bug, idea, confusing, praise). |
 | `src/`, `schema/`, `test/`, `wrangler.toml` | The relay: a Cloudflare Worker on the free plan. |
 | [PLAN.md](PLAN.md) | How it all works, the contract with the app, setup and limits. |
-| [PRIVACY.md](PRIVACY.md), [TERMS.md](TERMS.md) | The beta's privacy policy and terms. |
+| [PRIVACY.md](PRIVACY.md), [TERMS.md](TERMS.md) | The beta's Privacy Policy and Terms. |
 
 ## Deleting your data
 
-In the app: **Settings → Privacy → My data → Delete my data**. Your device holds a secret key for each report; only that key can delete it. Deleted files are removed from `data/` within about an hour. Git history and copies others have already downloaded can't be recalled; see [PRIVACY.md](PRIVACY.md).
+In the app: **Settings › About and beta › Privacy › My data › Delete my data**. Your device holds a secret key for each report; only that key can delete it. Deleted files are removed from `data/` within about an hour. Git history and copies others have already downloaded can't be recalled; see [PRIVACY.md](PRIVACY.md).
 
 ## Licence
 
