@@ -61,6 +61,9 @@ const PERIPHERAL_KINDS = ['audio-output', 'audio-input', 'audio-interface', 'mid
 const LINKS = ['builtin', 'usb', 'bluetooth', 'wired', 'hdmi', 'displayport', 'network', 'other', 'unknown'];
 const HEX4 = /^[0-9a-f]{4}$/;
 const opt = (v, f) => (v === undefined || v === null ? undefined : f(v));
+// A measurement the device couldn't give (owner, 2026-11-12): sent as null (or left out), stored as null, and left out
+// of every average. Never 0, which would look like a real reading.
+const unknown = (v, f) => (v === undefined || v === null ? null : f(v));
 
 // A peripheral: its kind, how it's connected, and the maker's model name and USB ids. Never a name the user can set
 // (a Bluetooth or device name), a serial number or a port path: PLAN.md, "Device and peripherals".
@@ -81,7 +84,8 @@ function device(v, path) {
   v = obj(v, path);
   const a = obj(v.audio, `${path}.audio`);
   const c = obj(v.cores, `${path}.cores`);
-  const clocks = Array.isArray(v.maxClockMHz) ? v.maxClockMHz.slice(0, 4) : fail(`${path}.maxClockMHz`, 'expected a list');
+  const clocks = v.maxClockMHz === undefined || v.maxClockMHz === null ? []
+    : Array.isArray(v.maxClockMHz) ? v.maxClockMHz.slice(0, 4) : fail(`${path}.maxClockMHz`, 'expected a list');
   const sc = v.screen === undefined ? undefined : obj(v.screen, `${path}.screen`);
   const per = v.peripherals === undefined ? undefined
     : Array.isArray(v.peripherals) ? v.peripherals.slice(0, 16) : fail(`${path}.peripherals`, 'expected a list');
@@ -90,20 +94,20 @@ function device(v, path) {
     arch: opt(v.arch, (x) => oneOf(x, `${path}.arch`, ARCHES)),
     osName: opt(v.osName, (x) => label(x, `${path}.osName`, 40)),
     // Major, or major.minor.build (Windows 10.0.22631): never a full build fingerprint.
-    osVersion: str(v.osVersion, `${path}.osVersion`, 16, /^[0-9]{1,5}(\.[0-9]{1,6}){0,2}$/),
+    osVersion: unknown(v.osVersion, (x) => str(x, `${path}.osVersion`, 16, /^[0-9]{1,5}(\.[0-9]{1,6}){0,2}$/)),
     manufacturer: opt(v.manufacturer, (x) => label(x, `${path}.manufacturer`, 40)),
     model: opt(v.model, (x) => label(x, `${path}.model`, 60)),
     formFactor: opt(v.formFactor, (x) => oneOf(x, `${path}.formFactor`, FORMS)),
-    cpu: label(v.cpu, `${path}.cpu`),
+    cpu: unknown(v.cpu, (x) => label(x, `${path}.cpu`)),
     cores: {
-      big: num(c.big, `${path}.cores.big`, 0, 256),
-      little: num(c.little, `${path}.cores.little`, 0, 256),
-      other: num(c.other, `${path}.cores.other`, 0, 256),
+      big: unknown(c.big, (x) => num(x, `${path}.cores.big`, 0, 256)),
+      little: unknown(c.little, (x) => num(x, `${path}.cores.little`, 0, 256)),
+      other: unknown(c.other, (x) => num(x, `${path}.cores.other`, 0, 256)),
     },
-    maxClockMHz: clocks.map((x, i) => num(x, `${path}.maxClockMHz[${i}]`, 0, 10000, 100)),
-    ramGB: num(v.ramGB, `${path}.ramGB`, 0, 1024),
-    gpu: label(v.gpu, `${path}.gpu`),
-    refreshHz: num(v.refreshHz, `${path}.refreshHz`, 0, 1000),
+    maxClockMHz: clocks.map((x, i) => unknown(x, (y) => num(y, `${path}.maxClockMHz[${i}]`, 0, 10000, 100))),
+    ramGB: unknown(v.ramGB, (x) => num(x, `${path}.ramGB`, 0, 1024)),
+    gpu: unknown(v.gpu, (x) => label(x, `${path}.gpu`)),
+    refreshHz: unknown(v.refreshHz, (x) => num(x, `${path}.refreshHz`, 0, 1000)),
     screen: sc && {
       widthPx: num(sc.widthPx, `${path}.screen.widthPx`, 0, 20000, 10),
       heightPx: num(sc.heightPx, `${path}.screen.heightPx`, 0, 20000, 10),
@@ -112,10 +116,10 @@ function device(v, path) {
     },
     audio: {
       backend: str(a.backend, `${path}.audio.backend`, 16, /^[a-z0-9_]{1,16}$/),
-      exclusive: bool(a.exclusive, `${path}.audio.exclusive`),
-      lowLatency: bool(a.lowLatency, `${path}.audio.lowLatency`),
-      bufferFrames: num(a.bufferFrames, `${path}.audio.bufferFrames`, 0, 65536),
-      sampleRate: num(a.sampleRate, `${path}.audio.sampleRate`, 0, 768000),
+      exclusive: unknown(a.exclusive, (x) => bool(x, `${path}.audio.exclusive`)),
+      lowLatency: unknown(a.lowLatency, (x) => bool(x, `${path}.audio.lowLatency`)),
+      bufferFrames: unknown(a.bufferFrames, (x) => num(x, `${path}.audio.bufferFrames`, 0, 65536)),
+      sampleRate: unknown(a.sampleRate, (x) => num(x, `${path}.audio.sampleRate`, 0, 768000)),
       output: opt(a.output, (x) => oneOf(x, `${path}.audio.output`, LINKS)),
     },
     peripherals: per && per.map((p, i) => peripheral(p, `${path}.peripherals[${i}]`)),
@@ -191,13 +195,16 @@ export function cleanReport(v) {
   const frames = obj(perf.frames, 'perf.frames');
   const usage = obj(v.usage, 'usage');
   const size = obj(usage.projectSize, 'usage.projectSize');
-  const hist = Array.isArray(perf.cpuLoadHistogram) && perf.cpuLoadHistogram.length === 10
-    ? perf.cpuLoadHistogram : fail('perf.cpuLoadHistogram', 'expected 10 numbers');
+  const hist = perf.cpuLoadHistogram === undefined || perf.cpuLoadHistogram === null ? null
+    : Array.isArray(perf.cpuLoadHistogram) && perf.cpuLoadHistogram.length === 10
+      ? perf.cpuLoadHistogram : fail('perf.cpuLoadHistogram', 'expected 10 numbers');
   return {
     schema: 1,
     receipt: str(v.receipt, 'receipt', 32, RECEIPT),
     deleteHash: str(v.deleteHash, 'deleteHash', 64, HASH),
     channel: oneOf(v.channel, 'channel', ['beta', 'release']),
+    // daily: the day's report; stress: one stress-test run (owner, 2026-11-12). Older reports without it are daily.
+    kind: v.kind === undefined ? 'daily' : oneOf(v.kind, 'kind', ['daily', 'stress']),
     day: str(v.day, 'day', 10, /^20[0-9]{2}-[01][0-9]-[0-3][0-9]$/),
     app: {
       version: str(app.version, 'app.version', 32, /^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$/),
@@ -208,17 +215,17 @@ export function cleanReport(v) {
     },
     device: device(v.device, 'device'),
     perf: {
-      cpuLoadHistogram: hist.map((x, i) => num(x, `perf.cpuLoadHistogram[${i}]`, 0, 1, 0.01)),
-      dropouts: num(perf.dropouts, 'perf.dropouts', 0, 1e7),
-      worstCallbackPct: num(perf.worstCallbackPct, 'perf.worstCallbackPct', 0, 10000, 5),
+      cpuLoadHistogram: hist && hist.map((x, i) => num(x, `perf.cpuLoadHistogram[${i}]`, 0, 1, 0.01)),
+      dropouts: unknown(perf.dropouts, (x) => num(x, 'perf.dropouts', 0, 1e7)),
+      worstCallbackPct: unknown(perf.worstCallbackPct, (x) => num(x, 'perf.worstCallbackPct', 0, 10000, 5)),
       frames: {
-        p50ms: num(frames.p50ms, 'perf.frames.p50ms', 0, 10000, 0.1),
-        p99ms: num(frames.p99ms, 'perf.frames.p99ms', 0, 10000, 0.1),
-        slowPct: num(frames.slowPct, 'perf.frames.slowPct', 0, 100),
+        p50ms: unknown(frames.p50ms, (x) => num(x, 'perf.frames.p50ms', 0, 10000, 0.1)),
+        p99ms: unknown(frames.p99ms, (x) => num(x, 'perf.frames.p99ms', 0, 10000, 0.1)),
+        slowPct: unknown(frames.slowPct, (x) => num(x, 'perf.frames.slowPct', 0, 100)),
       },
-      startupMs: num(perf.startupMs, 'perf.startupMs', 0, 600000, 50),
-      thermalEvents: num(perf.thermalEvents, 'perf.thermalEvents', 0, 1e5),
-      batterySaverMinutes: num(perf.batterySaverMinutes, 'perf.batterySaverMinutes', 0, 1440),
+      startupMs: unknown(perf.startupMs, (x) => num(x, 'perf.startupMs', 0, 600000, 50)),
+      thermalEvents: unknown(perf.thermalEvents, (x) => num(x, 'perf.thermalEvents', 0, 1e5)),
+      batterySaverMinutes: unknown(perf.batterySaverMinutes, (x) => num(x, 'perf.batterySaverMinutes', 0, 1440)),
       schedHint: oneOf(perf.schedHint, 'perf.schedHint', ['on', 'off', 'unsupported']),
       callbackCoreType: oneOf(perf.callbackCoreType, 'perf.callbackCoreType', ['big', 'little', 'other', 'unknown']),
     },

@@ -275,7 +275,8 @@ export function isoWeek(date) {
 
 const tally = (map, key, n = 1) => map.set(key, (map.get(key) || 0) + n);
 const top = (map, n = 10) => [...map].sort((a, b) => b[1] - a[1]).slice(0, n);
-const median = (xs) => { if (!xs.length) return 0; const s = [...xs].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
+// Unknown values (null) are left out; with none known the result is shown as 'unknown'.
+const median = (xs) => { const s = xs.filter((x) => typeof x === 'number').sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : 'unknown'; };
 
 // Versions in order, newest first: 1.0.0 > 1.0.0-beta.2 > 1.0.0-beta.1 > 0.9.0.
 export function compareVersions(a, b) {
@@ -296,8 +297,10 @@ export function compareVersions(a, b) {
 
 const versionOf = (r) => r.app.build ? `${r.app.version} (${r.app.build})` : r.app.version;
 
-// One version's (or one build's) numbers.
-function section(reports) {
+// One version's (or one build's) numbers. Devices and performance come from daily reports (so a tester who ran the
+// stress test many times counts once a day); stress results come from stress-test runs.
+function section(all) {
+  const reports = all.filter((r) => r.kind !== 'stress');
   const platforms = new Map(), cpus = new Map(), tiers = new Map(), costs = new Map(), errs = new Map(), hints = new Map();
   const models = new Map(), peripherals = new Map();
   for (const r of reports) {
@@ -306,11 +309,11 @@ function section(reports) {
     if (r.device.model) tally(models, r.device.manufacturer ? `${r.device.manufacturer} ${r.device.model}` : r.device.model);
     for (const p of r.device.peripherals || []) tally(peripherals, `${p.kind}, ${p.connection}${p.model ? `: ${p.model}` : ''}`);
     tally(hints, `${r.device.platform}: ${r.perf.schedHint}, callback on ${r.perf.callbackCoreType} core`);
-    if (r.stress) {
-      tally(tiers, `normal ${r.stress.tiers.normal}, heavy ${r.stress.tiers.heavy}, extreme ${r.stress.tiers.extreme}`);
-      for (const c of r.stress.topCosts) tally(costs, c.component, c.pct);
-    }
     for (const e of r.errors) tally(errs, `${e.type} at ${e.where}`, e.count);
+  }
+  for (const r of all) if (r.stress) {
+    tally(tiers, `normal ${r.stress.tiers.normal}, heavy ${r.stress.tiers.heavy}, extreme ${r.stress.tiers.extreme}`);
+    for (const c of r.stress.topCosts) tally(costs, c.component, c.pct);
   }
   const rows = (m) => top(m).map(([k, v]) => `| ${k} | ${Math.round(v * 10) / 10} |`).join('\n') || '| (none) | |';
   const s = stats(reports);
@@ -362,7 +365,8 @@ ${rows(errs)}
 `;
 }
 
-function stats(reports) {
+function stats(all) {
+  const reports = all.filter((r) => r.kind !== 'stress');
   const n = reports.length;
   return {
     worst: median(reports.map((r) => r.perf.worstCallbackPct)),
@@ -386,7 +390,7 @@ export function summarise(reports, week, usage) {
     compareVersions(b.split(' ')[0], a.split(' ')[0]) || (byVersion.get(b).length - byVersion.get(a).length));
   const table = versions.map((v) => {
     const s = stats(byVersion.get(v));
-    return `| ${v} | ${byVersion.get(v).length} | ${s.worst}% | ${s.dropouts} | ${s.startup} ms | ${s.p99} ms | ${s.errors} |`;
+    return `| ${v} | ${byVersion.get(v).filter((r) => r.kind !== 'stress').length} + ${byVersion.get(v).filter((r) => r.kind === 'stress').length} | ${s.worst}% | ${s.dropouts} | ${s.startup} ms | ${s.p99} ms | ${s.errors} |`;
   }).join('\n') || '| (none) | | | | | | |';
   const newest = versions[0];
   return `# Beta summary, ${week}
@@ -395,7 +399,7 @@ ${reports.length} reports. Every number here comes from the published files in \
 older builds don't blur the newest one.
 
 ## By version (newest first)
-| Version (build) | Reports | Median worst callback | With dropouts | Median startup | Median p99 frame | Errors |
+| Version (build) | Daily reports + stress runs | Median worst callback | With dropouts | Median startup | Median p99 frame | Errors |
 |---|---:|---:|---:|---:|---:|---:|
 ${table}
 
@@ -450,7 +454,7 @@ async function status(env) {
 // through) and cached for an hour at the edge, so a busy dashboard costs one query an hour per range.
 export const FACT_COLUMNS = [
   ['day', 'day'], ['version', "json_extract(json,'$.app.version')"], ['build', "json_extract(json,'$.app.build')"],
-  ['channel', "json_extract(json,'$.channel')"],
+  ['channel', "json_extract(json,'$.channel')"], ['kind', "coalesce(json_extract(json,'$.kind'),'daily')"],
   ['platform', "json_extract(json,'$.device.platform')"], ['arch', "json_extract(json,'$.device.arch')"],
   ['osName', "json_extract(json,'$.device.osName')"], ['osVersion', "json_extract(json,'$.device.osVersion')"],
   ['manufacturer', "json_extract(json,'$.device.manufacturer')"], ['model', "json_extract(json,'$.device.model')"],

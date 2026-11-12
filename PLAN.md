@@ -25,7 +25,7 @@ app ──HTTPS──▶ relay (Cloudflare Worker, free) ──▶ D1 buffer ─
 
 ## The contract with the app
 
-Every request sends `X-CAW-App-Key: caw-beta-1`. It is **not a secret** (it ships in the app); it only blocks casual spam. A new build can get a new key by adding it to `APP_KEYS`.
+Every request sends `X-CAW-App-Key`: `caw-beta-1` from beta builds, `caw-release-1` from release builds (owner, 2026-11-12). Keys are **not secrets** (they ship in the app); they only block casual spam. A new key is added to `APP_KEYS`.
 
 | Request | Body | Responses |
 |---|---|---|
@@ -52,6 +52,7 @@ The relay keeps only these fields (unknown ones are dropped, wrong types are a `
   "receipt": "<32 lowercase hex: 128 random bits from the device>",
   "deleteHash": "<64 lowercase hex: SHA-256 of the 32 raw bytes of a random delete key the device keeps>",
   "channel": "beta" | "release",
+  "kind": "daily" | "stress",   // optional, default daily: the day's report, or one stress-test run (owner, 2026-11-12)
   "day": "YYYY-MM-DD",
   "app": { "version": "1.0.0-beta.1", "engineVersion": "<letters, digits, . + ->", "capiVersion": <int>,
            "build": "<optional: 7-12 lowercase hex, the commit the build came from>" },
@@ -109,6 +110,8 @@ The relay keeps only these fields (unknown ones are dropped, wrong types are a `
 
 - **Device and peripherals** (owner, 2026-11-12: "this is the device, this is the specs, this is the OS, this is what peripherals are running", but nothing that can identify a user). Only what the maker defines: the model name or id, the maker's product name and USB vendor/product ids of a peripheral, its kind and connection. **Never** a name the user can set (the phone's or computer's name, a Bluetooth device name, a renamed MIDI port), a serial number, a MAC or other hardware address, a port path, or a full OS build fingerprint. The relay drops any other field; the app must not put a user-set name into `model`.
 - Ids that don't match the shapes above are counted as `"other"`, so a user's own component or project names can never be published.
+- **Unknown measurements are `null`, never 0** (owner, 2026-11-12): any number the device can't give (core counts, clocks, RAM, refresh rate, buffer size, sample rate, every `perf` number, `cpuLoadHistogram`), `exclusive`/`lowLatency`, `osVersion`, `cpu` and `gpu` may be `null` or left out. The relay stores `null`; summaries and the dashboard leave unknowns out of every median and share.
+- **Report kinds** (owner, 2026-11-12): one `daily` report a day, plus one `stress` report per stress-test run (carrying `stress`). Device, platform and performance figures count daily reports only, so a tester who runs the stress test often isn't counted many times; stress results come from the stress reports.
 - **Versions are always recorded** (owner, 2026-11-12): `app.version`, `engineVersion` and `capiVersion` are required, `schema` says which report format it is, and the optional `app.build` tells CI builds that share a version number apart. The weekly summary keeps versions apart: one row per version (and build), and the full breakdown for the newest only, so old builds' numbers never blur the current one. Anyone reading `data/` should filter by version the same way.
 - `errors[].where` must be C.A.W's own source, relative: `lib/…`, `src/…`, `engine/…`, `app/…`, `platform/…`, `include/…` or `package:caw/…`, then `:<line>`. Absolute paths (which could hold a username) are rejected.
 

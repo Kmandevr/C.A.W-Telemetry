@@ -134,7 +134,9 @@ svg text { fill: var(--muted); font-size: 10px; }
   let data = null;
 
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+  // Unknown measurements (null) are left out of every median and band.
   const median = (xs) => { const s = xs.filter((x) => typeof x === 'number').sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
+  const known = (x) => typeof x === 'number';
   const count = (rows, key) => { const m = new Map(); for (const r of rows) { const k = key(r); if (k === null || k === undefined || k === '') continue; m.set(k, (m.get(k) || 0) + 1); } return m; };
   const sorted = (m) => [...m].sort((a, b) => b[1] - a[1]);
   const cmpVersion = (a, b) => {
@@ -191,17 +193,21 @@ svg text { fill: var(--muted); font-size: 10px; }
 
   function render() {
     const f = { version: $('f-version').value, platform: $('f-platform').value, arch: $('f-arch').value, form: $('f-form').value, channel: $('f-channel').value };
-    const rows = data.filter((r) => (f.version === ALL || r.version === f.version) && (f.platform === ALL || r.platform === f.platform)
+    const matching = data.filter((r) => (f.version === ALL || r.version === f.version) && (f.platform === ALL || r.platform === f.platform)
       && (f.arch === ALL || r.arch === f.arch) && (f.form === ALL || r.formFactor === f.form) && (f.channel === ALL || r.channel === f.channel));
+    // Daily reports for devices and performance (a tester's repeated stress runs count once a day); stress runs below.
+    const rows = matching.filter((r) => r.kind !== 'stress');
     const n = rows.length;
 
     const cards = $('cards'); cards.replaceChildren();
     const card = (v, k) => { const c = el('div', 'card'); c.append(el('div', 'v', v), el('div', 'k', k)); cards.append(c); };
     const mw = median(rows.map((r) => r.worstPct)), ms = median(rows.map((r) => r.startupMs)), mp = median(rows.map((r) => r.p99ms));
-    card(String(n), 'reports');
+    card(String(n), 'daily reports');
+    card(String(matching.length - n), 'stress-test runs');
     card(String(count(rows, (r) => r.model || r.cpu).size), 'distinct devices');
     card(mw === null ? '–' : `${mw}%`, 'median worst callback');
-    card(n ? `${Math.round((100 * rows.filter((r) => r.dropouts > 0).length) / n)}%` : '–', 'reports with dropouts');
+    const dk = rows.filter((r) => known(r.dropouts));
+    card(dk.length ? `${Math.round((100 * dk.filter((r) => r.dropouts > 0).length) / dk.length)}%` : '–', 'reports with dropouts');
     card(ms === null ? '–' : `${ms} ms`, 'median startup');
     card(mp === null ? '–' : `${mp} ms`, 'median p99 frame');
 
@@ -229,7 +235,8 @@ svg text { fill: var(--muted); font-size: 10px; }
     bars('c-pmodel', sorted(count(per, (p) => p.model)), { limit: 15 });
 
     const bands = [['0–25%', 0, 25], ['25–50%', 25, 50], ['50–75%', 50, 75], ['75–100%', 75, 100], ['over 100%', 100, Infinity]];
-    bars('c-worst', bands.map(([k, lo, hi]) => [k, rows.filter((r) => r.worstPct >= lo && r.worstPct < hi).length]).filter((e) => n), { pctOf: n });
+    const wk = rows.filter((r) => known(r.worstPct));
+    bars('c-worst', wk.length ? bands.map(([k, lo, hi]) => [k, wk.filter((r) => r.worstPct >= lo && r.worstPct < hi).length]) : [], { pctOf: wk.length });
     const load = new Array(10).fill(0); let withLoad = 0;
     for (const r of rows) if (Array.isArray(r.cpuLoad)) { withLoad++; r.cpuLoad.forEach((x, i) => { load[i] += x; }); }
     bars('c-load', withLoad ? load.map((x, i) => [`${i * 10}–${i * 10 + 10}%`, Math.round((100 * x) / withLoad)]) : [], { limit: 10, fmt: (v) => `${v}%` });
@@ -238,14 +245,14 @@ svg text { fill: var(--muted); font-size: 10px; }
       return [...g].map(([k, xs]) => [`${k} (${xs.length})`, median(xs)]).filter((e) => e[1] !== null).sort((a, b) => b[1] - a[1]);
     };
     bars('c-worst-model', medBy((r) => r.model || r.cpu, (r) => r.worstPct), { fmt: (v) => `${v}%`, limit: 15 });
-    const drop = new Map(); for (const r of rows) { const k = plat(r); const d = drop.get(k) || [0, 0]; d[0]++; if (r.dropouts > 0) d[1]++; drop.set(k, d); }
+    const drop = new Map(); for (const r of rows.filter((x) => known(x.dropouts))) { const k = plat(r); const d = drop.get(k) || [0, 0]; d[0]++; if (r.dropouts > 0) d[1]++; drop.set(k, d); }
     bars('c-drop', [...drop].map(([k, [t, d]]) => [`${k} (${t})`, Math.round((100 * d) / t)]).sort((a, b) => b[1] - a[1]), { fmt: (v) => `${v}%` });
     bars('c-startup', medBy(plat, (r) => r.startupMs), { fmt: (v) => `${v}` });
     bars('c-frames', medBy((r) => (r.refreshHz ? `${r.refreshHz} Hz` : null), (r) => r.p99ms), { fmt: (v) => `${v}` });
     bars('c-sched', sorted(count(rows, (r) => `${r.platform}: hint ${r.schedHint}, ${r.coreType} core`)), { pctOf: n });
     bars('c-profile', sorted(count(rows, (r) => r.profile)), { pctOf: n });
 
-    const runs = rows.filter((r) => r.stress);
+    const runs = matching.filter((r) => r.stress);
     bars('c-tiers', sorted(count(runs, (r) => `normal ${r.stress.tiers.normal} · heavy ${r.stress.tiers.heavy} · extreme ${r.stress.tiers.extreme}`)), { pctOf: runs.length });
     const lim = new Map(); for (const r of runs) { const k = r.model || r.cpu; if (!lim.has(k)) lim.set(k, []); lim.get(k).push(r.stress.limits.tracks); }
     bars('c-limit', [...lim].map(([k, xs]) => [`${k} (${xs.length})`, median(xs)]).sort((a, b) => b[1] - a[1]), { fmt: (v) => `${v} tracks`, limit: 15 });

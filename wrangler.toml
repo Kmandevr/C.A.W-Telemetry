@@ -7,7 +7,7 @@ workers_dev = true
 
 [vars]
 REPO = "Kmandevr/C.A.W-Telemetry"
-APP_KEYS = "caw-beta-1"          # not secret: blocks casual spam only; the app sends it as X-CAW-App-Key
+APP_KEYS = "caw-beta-1,caw-release-1"   # not secret: blocks casual spam only; the app sends it as X-CAW-App-Key
 DAILY_REPORT_CAP = "5000"
 DAILY_FEEDBACK_CAP = "300"
 DAILY_LOOKUP_CAP = "10000"

@@ -243,7 +243,7 @@ test('versions: ordered newest first, kept apart in the summary, optional build 
   cur.device.cpu = 'Newest CPU';
   const md = summarise([old, cur], '2026-W46', '- none');
   assert.match(md, /## Newest version: 1\.0\.0-beta\.2 \(abc1234\)/);
-  assert.ok(md.indexOf('| 1.0.0-beta.2 (abc1234) | 1 |') < md.indexOf('| 1.0.0-beta.1 | 1 |'), 'newest row first');
+  assert.ok(md.indexOf('| 1.0.0-beta.2 (abc1234) | 1 + 0 |') < md.indexOf('| 1.0.0-beta.1 | 1 + 0 |'), 'newest row first');
   const newest = md.slice(md.indexOf('## Newest version'));
   assert.match(newest, /Newest CPU/);
   assert.ok(!newest.includes('Cortex-X2'), "the old version's devices stay out of the newest breakdown");
@@ -275,6 +275,37 @@ test('dashboard: served, in sync with its HTML; facts: compact rows of published
   assert.deepEqual(s22.peripherals, [{ kind: 'midi', connection: 'usb', model: 'KeyStep 37' }]);
   assert.equal(s22.cpuLoad.length, 10);
   assert.ok(!JSON.stringify(j).includes('deleteHash'));
+});
+
+test('unknown measurements are null, never 0, and stay out of medians', () => {
+  const r = cleanReport(report({
+    device: { ...report().device, ramGB: null, refreshHz: undefined, maxClockMHz: [null, 2500], cpu: null, osVersion: null },
+    perf: { ...report().perf, startupMs: null, cpuLoadHistogram: null, frames: { p50ms: null, p99ms: 9, slowPct: null } },
+  }));
+  assert.equal(r.device.ramGB, null);
+  assert.equal(r.device.refreshHz, null);
+  assert.deepEqual(r.device.maxClockMHz, [null, 2500]);
+  assert.equal(r.device.cpu, null);
+  assert.equal(r.perf.startupMs, null);
+  assert.equal(r.perf.cpuLoadHistogram, null);
+  const known = cleanReport(report({ receipt: receipt(4) }));
+  const md = summarise([r, known], '2026-W46', '- none');
+  assert.match(md, /Median startup: 1250 ms/, 'the unknown startup is skipped, not counted as 0');
+  assert.match(summarise([r], '2026-W46', '- none'), /Median startup: unknown ms/);
+});
+
+test('report kind: stress runs count in stress results, not in device counts', () => {
+  assert.equal(cleanReport(report()).kind, 'daily');
+  assert.throws(() => cleanReport(report({ kind: 'hourly' })));
+  const stressRun = { tiers: { normal: 'comfortable', heavy: 'tight', extreme: 'over' }, limits: { tracks: 20, voices: 40, effects: 30 },
+    scenarios: {}, topCosts: [{ component: 'org.caw.flagship', pct: 40 }], version: 1 };
+  const daily = cleanReport(report());
+  const runs = [5, 6, 7].map((n) => cleanReport(report({ receipt: receipt(n), kind: 'stress', stress: stressRun,
+    device: { ...report().device, cpu: 'Benchmark Fan CPU' } })));
+  const md = summarise([daily, ...runs], '2026-W46', '- none');
+  assert.match(md, /\| 1\.0\.0-beta\.1 \| 1 \+ 3 \|/);
+  assert.ok(!md.includes('Benchmark Fan CPU'), 'stress runs do not count as extra devices');
+  assert.match(md, /normal comfortable, heavy tight, extreme over \| 3 \|/);
 });
 
 test('isoWeek and summarise handle edges', () => {
