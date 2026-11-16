@@ -1,0 +1,100 @@
+{
+  "schema": 1,
+  "receipt": "071aee72fb877da8bc4b32382fe8fd89",
+  "channel": "beta",
+  "kind": "daily",
+  "day": "2026-11-15",
+  "app": {
+    "version": "1.0.4-alpha.1",
+    "build": "47bbc9b9e793",
+    "engineVersion": "1.0.4-alpha.1",
+    "capiVersion": 32
+  },
+  "device": {
+    "platform": "android",
+    "arch": "arm64",
+    "osName": "Android",
+    "osVersion": "16",
+    "manufacturer": "samsung",
+    "model": "SM-S906U",
+    "formFactor": "phone",
+    "cpu": "SM8450",
+    "cores": {
+      "big": 4,
+      "little": 4,
+      "other": 0
+    },
+    "maxClockMHz": [
+      3000,
+      2500,
+      1800
+    ],
+    "ramGB": 7,
+    "gpu": null,
+    "refreshHz": 120,
+    "screen": {
+      "widthPx": 2340,
+      "heightPx": 1080,
+      "displays": 1
+    },
+    "audio": {
+      "backend": "aaudio",
+      "exclusive": false,
+      "lowLatency": true,
+      "bufferFrames": 256,
+      "sampleRate": 48000,
+      "output": "bluetooth"
+    },
+    "peripherals": [
+      {
+        "kind": "audio-output",
+        "connection": "bluetooth"
+      }
+    ],
+    "profile": "balanced",
+    "eco": false
+  },
+  "perf": {
+    "cpuLoadHistogram": [
+      0.19,
+      0.18,
+      0.56,
+      0.07,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "dropouts": 0,
+    "worstCallbackPct": 800,
+    "frames": {
+      "p50ms": 10,
+      "p99ms": 31,
+      "slowPct": 60
+    },
+    "startupMs": 400,
+    "thermalEvents": 1,
+    "batterySaverMinutes": 0,
+    "schedHint": "off",
+    "callbackCoreType": "little"
+  },
+  "usage": {
+    "minutesOpen": 35,
+    "minutesPlaying": 35,
+    "screens": {
+      "arrange": 35,
+      "build": 0
+    },
+    "builtins": {
+      "other": 48
+    },
+    "projectSize": {
+      "tracks": "1-4",
+      "clips": "1-10"
+    }
+  },
+  "stress": null,
+  "errors": []
+}
