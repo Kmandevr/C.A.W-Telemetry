@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "receipt": "c13eef4fcb4dda229f1c14474a8430ee",
+  "channel": "beta",
+  "kind": "daily",
+  "day": "2026-11-23",
+  "app": {
+    "version": "1.1.1-alpha.1",
+    "build": "2a9934c28497",
+    "engineVersion": "1.1.1-alpha.1",
+    "capiVersion": 45
+  },
+  "device": {
+    "platform": "android",
+    "arch": "arm64",
+    "osName": "Android",
+    "osVersion": "16",
+    "manufacturer": "samsung",
+    "model": "SM-S906U",
+    "formFactor": "phone",
+    "cpu": "SM8450",
+    "cores": {
+      "big": 4,
+      "little": 4,
+      "other": 0
+    },
+    "maxClockMHz": [
+      3000,
+      2500,
+      1800
+    ],
+    "ramGB": 7,
+    "gpu": null,
+    "refreshHz": 120,
+    "screen": {
+      "widthPx": 2340,
+      "heightPx": 1080,
+      "displays": 1
+    },
+    "audio": {
+      "backend": "aaudio",
+      "exclusive": false,
+      "lowLatency": true,
+      "bufferFrames": 256,
+      "sampleRate": 48000,
+      "output": "unknown"
+    },
+    "peripherals": [],
+    "profile": "full",
+    "eco": false
+  },
+  "perf": {
+    "cpuLoadHistogram": [
+      0.28,
+      0.37,
+      0.27,
+      0.08,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "dropouts": 0,
+    "worstCallbackPct": 45,
+    "frames": {
+      "p50ms": 9,
+      "p99ms": 44,
+      "slowPct": 53
+    },
+    "startupMs": 650,
+    "thermalEvents": 1,
+    "batterySaverMinutes": 0,
+    "schedHint": "off",
+    "callbackCoreType": "little"
+  },
+  "usage": {
+    "minutesOpen": 30,
+    "minutesPlaying": 25,
+    "screens": {
+      "arrange": 30
+    },
+    "builtins": {
+      "other": 19
+    },
+    "projectSize": {
+      "tracks": "1-4",
+      "clips": "1-10"
+    }
+  },
+  "stress": null,
+  "errors": []
+}
